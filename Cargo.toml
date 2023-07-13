@@ -1,5 +1,5 @@
 [package]
-name = "reactive"
+name = "reactivx"
 version = "0.1.0"
 edition = "2021"
 description = "Thread Safe Reactive Data Structure."
