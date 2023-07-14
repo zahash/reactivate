@@ -65,6 +65,38 @@ impl<T: Debug> Debug for Reactive<T> {
     }
 }
 
+#[derive(Clone)]
+pub struct ReactiveBuilder<S> {
+    reactive: Reactive<S>,
+}
+
+impl<S: Default> ReactiveBuilder<S> {
+    pub fn new() -> Self {
+        Self {
+            reactive: Reactive::default(),
+        }
+    }
+}
+
+impl<S: Clone + Hash + Send + 'static> ReactiveBuilder<S> {
+    pub fn add<T: Clone>(self, r: &Reactive<T>, f: impl Fn((&mut S, &T)) + Send + 'static) -> Self {
+        self.reactive.update_inplace(|val| f((val, &r.value())));
+
+        r.add_observer({
+            let this = self.reactive.clone();
+            move |r_val| this.update_inplace(|this_val| f((this_val, r_val)))
+        });
+
+        self
+    }
+}
+
+impl<S> ReactiveBuilder<S> {
+    pub fn build(self) -> Reactive<S> {
+        self.reactive
+    }
+}
+
 #[derive(Default)]
 struct ReactiveInner<T> {
     value: T,
@@ -205,5 +237,47 @@ mod tests {
         assert_eq!(20, value.len());
         assert_eq!(10, num_a);
         assert_eq!(10, num_b);
+    }
+
+    #[test]
+    fn can_combine() {
+        let a = Reactive::new(String::from("zahash"));
+        let b = Reactive::new(0isize);
+        // let c = Reactive::new(0);
+
+        let d = ReactiveBuilder::<(String, isize)>::new()
+            .add(&a, |(r, a_val)| r.0 = a_val.clone())
+            .add(&b, |(r, b_val)| r.1 = *b_val)
+            .build()
+            .derive(|r| r.0.len() as isize + r.1);
+
+        // let d = {
+        //     let ab: Reactive<(String, isize)> = Reactive::default();
+        //     a.add_observer({
+        //         let ab = ab.clone();
+        //         move |a_val| ab.update_inplace(|ab_val| ab_val.0 = a_val.clone())
+        //     });
+        //     b.add_observer({
+        //         let ab = ab.clone();
+        //         move |b_val| ab.update_inplace(|ab_val| ab_val.1 = b_val.clone())
+        //     });
+
+        //     ab.derive(|ab_val| ab_val.0.len() as isize + ab_val.1)
+        // };
+
+        println!("a={:?}", a);
+        println!("b={:?}", b);
+        // println!("ab={:?}", ab);
+        println!("d={:?}", d);
+
+        println!("");
+
+        a.update(|_| String::from("asdf"));
+        b.update(|_| 5);
+
+        println!("a={:?}", a);
+        println!("b={:?}", b);
+        // println!("ab={:?}", ab);
+        println!("d={:?}", d);
     }
 }
