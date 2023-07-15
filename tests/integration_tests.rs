@@ -1,4 +1,4 @@
-use reactivx::{MergeReactive, Reactive};
+use reactivx::{Merge, Reactive};
 use std::{
     sync::{Arc, Mutex},
     thread,
@@ -94,7 +94,9 @@ fn is_threadsafe() {
 fn can_merge() {
     let a = Reactive::new(String::from("hazash"));
     let b = Reactive::new(0isize);
-    let d = (&a, &b).merge().derive(|val| val.0.len() as isize + val.1);
+    let d = (&a, &b)
+        .merge()
+        .derive(|(a_val, b_val)| a_val.len() as isize + b_val);
 
     assert_eq!(6, d.value());
 

@@ -99,13 +99,13 @@ impl<S> ReactiveBuilder<S> {
 
 // variadic generics in rust
 
-pub trait MergeReactive: Sized {
+pub trait Merge: Sized {
     type Output;
     fn merge(self) -> Reactive<Self::Output>;
 }
 
 impl<T0: Clone + Default + Hash + Send + 'static, T1: Clone + Default + Hash + Send + 'static>
-    MergeReactive for (&Reactive<T0>, &Reactive<T1>)
+    Merge for (&Reactive<T0>, &Reactive<T1>)
 {
     type Output = (T0, T1);
 

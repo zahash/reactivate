@@ -41,6 +41,37 @@ fn main() {
 }
 ```
 
+### Merge and Derive
+
+```rust
+use reactivx::{Merge, Reactive};
+
+fn main() {
+    let a = Reactive::new(String::from("hazash"));
+    let b = Reactive::new(0isize);
+    let d = (&a, &b)
+        .merge()
+        .derive(|(a_val, b_val)| a_val.len() as isize + b_val);
+
+    println!("{:?}", a); // Reactive("hazash")
+    println!("{:?}", b); // Reactive(0)
+    println!("{:?}", d); // Reactive(6)
+
+    b.update(|_| 5);
+
+    println!("{:?}", a); // Reactive("hazash")
+    println!("{:?}", b); // Reactive(5)
+    println!("{:?}", d); // Reactive(11)
+
+
+    a.update(|_| String::from("mouse"));
+
+    println!("{:?}", a); // Reactive("mouse")
+    println!("{:?}", b); // Reactive(5)
+    println!("{:?}", d); // Reactive(10)
+}
+```
+
 ### Update
 
 ```rust
