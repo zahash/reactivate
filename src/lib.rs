@@ -99,18 +99,6 @@ impl<S> ReactiveBuilder<S> {
 
 // variadic generics in rust
 
-trait UnwrapReactive: Sized {
-    type Output;
-    fn unwrap(self) -> Self::Output;
-}
-
-impl<T0: Clone, T1: Clone> UnwrapReactive for (&Reactive<T0>, &Reactive<T1>) {
-    type Output = (T0, T1);
-    fn unwrap(self) -> Self::Output {
-        (self.0.value(), self.1.value())
-    }
-}
-
 trait MergeReactive: Sized {
     type Output;
     fn merge(self) -> Reactive<Self::Output>;
@@ -122,7 +110,7 @@ impl<T0: Clone + Default + Hash + Send + 'static, T1: Clone + Default + Hash + S
     type Output = (T0, T1);
 
     fn merge(self) -> Reactive<Self::Output> {
-        let unwrapped = (self.0, self.1).unwrap();
+        let unwrapped = (self.0.value(), self.1.value());
         let combined = Reactive::new(unwrapped);
 
         self.0.add_observer({
