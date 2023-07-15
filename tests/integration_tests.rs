@@ -93,10 +93,10 @@ fn is_threadsafe() {
 #[test]
 fn can_merge() {
     let a = Reactive::new(String::from("hazash"));
-    let b = Reactive::new(0isize);
+    let b = Reactive::new(0);
     let d = (&a, &b)
         .merge()
-        .derive(|(a_val, b_val)| a_val.len() as isize + b_val);
+        .derive(|(a_val, b_val)| a_val.len() + b_val);
 
     assert_eq!(6, d.value());
 
