@@ -97,6 +97,48 @@ impl<S> ReactiveBuilder<S> {
     }
 }
 
+// variadic generics in rust
+
+trait UnwrapReactive: Sized {
+    type Output;
+    fn unwrap(self) -> Self::Output;
+}
+
+impl<T0: Clone, T1: Clone> UnwrapReactive for (&Reactive<T0>, &Reactive<T1>) {
+    type Output = (T0, T1);
+    fn unwrap(self) -> Self::Output {
+        (self.0.value(), self.1.value())
+    }
+}
+
+trait MergeReactive: Sized {
+    type Output;
+    fn merge(self) -> Reactive<Self::Output>;
+}
+
+impl<T0: Clone + Default + Hash + Send + 'static, T1: Clone + Default + Hash + Send + 'static>
+    MergeReactive for (&Reactive<T0>, &Reactive<T1>)
+{
+    type Output = (T0, T1);
+
+    fn merge(self) -> Reactive<Self::Output> {
+        let unwrapped = (self.0, self.1).unwrap();
+        let combined = Reactive::new(unwrapped);
+
+        self.0.add_observer({
+            let combined = combined.clone();
+            move |val| combined.update_inplace(|c| c.0 = val.clone())
+        });
+
+        self.1.add_observer({
+            let combined = combined.clone();
+            move |val| combined.update_inplace(|c| c.1 = val.clone())
+        });
+
+        combined
+    }
+}
+
 #[derive(Default)]
 struct ReactiveInner<T> {
     value: T,
@@ -240,44 +282,27 @@ mod tests {
     }
 
     #[test]
-    fn can_combine() {
-        let a = Reactive::new(String::from("zahash"));
+    fn can_merge() {
+        let a = Reactive::new(String::from("hazash"));
         let b = Reactive::new(0isize);
-        // let c = Reactive::new(0);
-
-        let d = ReactiveBuilder::<(String, isize)>::new()
-            .add(&a, |(r, a_val)| r.0 = a_val.clone())
-            .add(&b, |(r, b_val)| r.1 = *b_val)
-            .build()
-            .derive(|r| r.0.len() as isize + r.1);
-
-        // let d = {
-        //     let ab: Reactive<(String, isize)> = Reactive::default();
-        //     a.add_observer({
-        //         let ab = ab.clone();
-        //         move |a_val| ab.update_inplace(|ab_val| ab_val.0 = a_val.clone())
-        //     });
-        //     b.add_observer({
-        //         let ab = ab.clone();
-        //         move |b_val| ab.update_inplace(|ab_val| ab_val.1 = b_val.clone())
-        //     });
-
-        //     ab.derive(|ab_val| ab_val.0.len() as isize + ab_val.1)
-        // };
+        let d = (&a, &b).merge().derive(|val| val.0.len() as isize + val.1);
 
         println!("a={:?}", a);
         println!("b={:?}", b);
-        // println!("ab={:?}", ab);
         println!("d={:?}", d);
-
         println!("");
 
-        a.update(|_| String::from("asdf"));
         b.update(|_| 5);
 
         println!("a={:?}", a);
         println!("b={:?}", b);
-        // println!("ab={:?}", ab);
+        println!("d={:?}", d);
+        println!("");
+
+        a.update(|_| String::from("mouse"));
+
+        println!("a={:?}", a);
+        println!("b={:?}", b);
         println!("d={:?}", d);
     }
 }
