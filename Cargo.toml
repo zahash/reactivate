@@ -1,6 +1,6 @@
 [package]
 name = "reactivx"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 authors = ["Zahash <zahash.z@gmail.com>"]
 description = "Thread Safe Reactive Data Structure."
@@ -10,3 +10,4 @@ repository = "https://github.com/zahash/reactivx"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+paste = { version = "1" }

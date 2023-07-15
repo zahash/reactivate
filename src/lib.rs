@@ -1,5 +1,7 @@
 //! Thread Safe Reactive Data Structure
 
+mod macros;
+
 use std::{
     collections::hash_map::DefaultHasher,
     fmt::Debug,
@@ -97,34 +99,9 @@ impl<S> ReactiveBuilder<S> {
     }
 }
 
-// variadic generics in rust
-
-pub trait Merge: Sized {
+pub trait Merge {
     type Output;
     fn merge(self) -> Reactive<Self::Output>;
-}
-
-impl<T0: Clone + Default + Hash + Send + 'static, T1: Clone + Default + Hash + Send + 'static>
-    Merge for (&Reactive<T0>, &Reactive<T1>)
-{
-    type Output = (T0, T1);
-
-    fn merge(self) -> Reactive<Self::Output> {
-        let unwrapped = (self.0.value(), self.1.value());
-        let combined = Reactive::new(unwrapped);
-
-        self.0.add_observer({
-            let combined = combined.clone();
-            move |val| combined.update_inplace(|c| c.0 = val.clone())
-        });
-
-        self.1.add_observer({
-            let combined = combined.clone();
-            move |val| combined.update_inplace(|c| c.1 = val.clone())
-        });
-
-        combined
-    }
 }
 
 #[derive(Default)]
