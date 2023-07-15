@@ -275,22 +275,12 @@ mod tests {
         let b = Reactive::new(0isize);
         let d = (&a, &b).merge().derive(|val| val.0.len() as isize + val.1);
 
-        println!("a={:?}", a);
-        println!("b={:?}", b);
-        println!("d={:?}", d);
-        println!("");
+        assert_eq!(6, d.value());
 
         b.update(|_| 5);
-
-        println!("a={:?}", a);
-        println!("b={:?}", b);
-        println!("d={:?}", d);
-        println!("");
+        assert_eq!(11, d.value());
 
         a.update(|_| String::from("mouse"));
-
-        println!("a={:?}", a);
-        println!("b={:?}", b);
-        println!("d={:?}", d);
+        assert_eq!(10, d.value());
     }
 }
