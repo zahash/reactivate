@@ -67,38 +67,6 @@ impl<T: Debug> Debug for Reactive<T> {
     }
 }
 
-#[derive(Clone)]
-pub struct ReactiveBuilder<S> {
-    reactive: Reactive<S>,
-}
-
-impl<S: Default> ReactiveBuilder<S> {
-    pub fn new() -> Self {
-        Self {
-            reactive: Reactive::default(),
-        }
-    }
-}
-
-impl<S: Clone + Hash + Send + 'static> ReactiveBuilder<S> {
-    pub fn add<T: Clone>(self, r: &Reactive<T>, f: impl Fn((&mut S, &T)) + Send + 'static) -> Self {
-        self.reactive.update_inplace(|val| f((val, &r.value())));
-
-        r.add_observer({
-            let this = self.reactive.clone();
-            move |r_val| this.update_inplace(|this_val| f((this_val, r_val)))
-        });
-
-        self
-    }
-}
-
-impl<S> ReactiveBuilder<S> {
-    pub fn build(self) -> Reactive<S> {
-        self.reactive
-    }
-}
-
 pub trait Merge {
     type Output;
     fn merge(self) -> Reactive<Self::Output>;
