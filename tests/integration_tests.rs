@@ -1,4 +1,4 @@
-use reactivx::{Merge, Reactive};
+use reactivate::{Merge, Reactive};
 use std::{
     sync::{Arc, Mutex},
     thread,

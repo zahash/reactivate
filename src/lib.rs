@@ -18,7 +18,7 @@ impl<T> Reactive<T> {
     /// Constructs a new Reactive<T>
     /// # Examples
     /// ```
-    /// use reactivx::Reactive;
+    /// use reactivate::Reactive;
     ///
     /// let r = Reactive::new("🦀");
     /// ```
@@ -32,7 +32,7 @@ impl<T> Reactive<T> {
     /// the observer functions are called whenever the value inside the Reactive is updated
     /// # Examples
     /// ```
-    /// use reactivx::Reactive;
+    /// use reactivate::Reactive;
     /// use std::sync::{Arc, Mutex};
     ///
     /// let r: Reactive<String> = Reactive::default();
@@ -62,7 +62,7 @@ impl<T: Clone> Reactive<T> {
     ///
     /// # Examples
     /// ```
-    /// use reactivx::Reactive;
+    /// use reactivate::Reactive;
     ///
     /// let r = Reactive::new(String::from("🦀"));
     /// assert_eq!("🦀", r.value());
@@ -76,7 +76,7 @@ impl<T: Clone> Reactive<T> {
     ///
     /// # Examples
     /// ```
-    /// use reactivx::Reactive;
+    /// use reactivate::Reactive;
     ///
     /// let r = Reactive::new(10);
     /// let d = r.derive(|val| val + 5);
@@ -106,7 +106,7 @@ impl<T: PartialEq> Reactive<T> {
     ///
     /// # Examples
     /// ```
-    /// use reactivx::Reactive;
+    /// use reactivate::Reactive;
     ///
     /// let r = Reactive::new(10);
     /// let d = r.derive(|val| val + 5);
@@ -126,7 +126,7 @@ impl<T: Hash> Reactive<T> {
     ///
     /// # Examples
     /// ```
-    /// use reactivx::Reactive;
+    /// use reactivate::Reactive;
     ///
     /// let r = Reactive::new(vec![1, 2, 3]);
     /// let d = r.derive(|nums| nums.iter().sum::<i32>());
