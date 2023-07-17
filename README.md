@@ -1,4 +1,4 @@
-# reactivx
+# reactivate
 
 > Thread Safe Reactive Data Structure for Rust
 
@@ -9,7 +9,7 @@
 include it in your `Cargo.toml` under `[dependencies]`
 
 ```toml
-reactivx = { version = "*" }
+reactivate = { version = "*" }
 ```
 
 ## Usage examples
@@ -17,7 +17,7 @@ reactivx = { version = "*" }
 ### Construction
 
 ```rust
-use reactivx::Reactive;
+use reactivate::Reactive;
 
 fn main() {
     let r = Reactive::new(10);
@@ -30,7 +30,7 @@ fn main() {
 ### Derive
 
 ```rust
-use reactivx::Reactive;
+use reactivate::Reactive;
 
 fn main() {
     let r = Reactive::new(10);
@@ -44,7 +44,7 @@ fn main() {
 ### Update
 
 ```rust
-use reactivx::Reactive;
+use reactivate::Reactive;
 
 fn main() {
     let r = Reactive::new(10);
@@ -60,7 +60,7 @@ fn main() {
 ### Update Inplace
 
 ```rust
-use reactivx::Reactive;
+use reactivate::Reactive;
 
 fn main() {
     let r = Reactive::new(vec![1, 2, 3]);
@@ -80,7 +80,7 @@ fn main() {
 ### Merge and Derive
 
 ```rust
-use reactivx::{Merge, Reactive};
+use reactivate::{Merge, Reactive};
 
 fn main() {
     let a = Reactive::new(String::from("hazash"));
@@ -111,7 +111,7 @@ fn main() {
 ### Add Observers
 
 ```rust
-use reactivx::Reactive;
+use reactivate::Reactive;
 use std::sync::{Arc, Mutex};
 
 fn main() {
@@ -139,7 +139,7 @@ fn main() {
 ### With Threads
 
 ```rust
-use reactivx::Reactive;
+use reactivate::Reactive;
 use std::{thread, time::Duration};
 
 fn main() {
@@ -179,7 +179,7 @@ Distributed under the MIT license. See `LICENSE` for more information.
 
 ## Contributing
 
-1. Fork it (<https://github.com/zahash/reactivx/fork>)
+1. Fork it (<https://github.com/zahash/reactivate/fork>)
 2. Create your feature branch (`git checkout -b feature/fooBar`)
 3. Commit your changes (`git commit -am 'Add some fooBar'`)
 4. Push to the branch (`git push origin feature/fooBar`)
