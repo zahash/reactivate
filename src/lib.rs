@@ -58,7 +58,7 @@ impl<T> Reactive<T> {
 }
 
 impl<T: Clone> Reactive<T> {
-    /// Returns the value inside the reactive
+    /// Returns a clone/copy of the value inside the reactive
     ///
     /// # Examples
     /// ```
@@ -164,7 +164,7 @@ struct ReactiveInner<T> {
 }
 
 impl<T> ReactiveInner<T> {
-    fn new(value: T) -> Self {
+    const fn new(value: T) -> Self {
         Self {
             value,
             observers: vec![],

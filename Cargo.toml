@@ -1,6 +1,6 @@
 [package]
 name = "reactivx"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 authors = ["Zahash <zahash.z@gmail.com>"]
 description = "Thread Safe Reactive Data Structure."
