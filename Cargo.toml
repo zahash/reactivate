@@ -1,6 +1,6 @@
 [package]
 name = "reactivate"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 authors = ["Zahash <zahash.z@gmail.com>"]
 description = "Thread Safe Reactive Data Structure."

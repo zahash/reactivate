@@ -9,6 +9,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+/// Thread Safe Reactive Data Structure using the observer pattern
 #[derive(Clone, Default)]
 pub struct Reactive<T> {
     inner: Arc<Mutex<ReactiveInner<T>>>,
@@ -36,6 +37,8 @@ impl<T> Reactive<T> {
     /// use std::sync::{Arc, Mutex};
     ///
     /// let r: Reactive<String> = Reactive::default();
+    /// // Arc<Mutex<T>> is used to make the vector thread safe
+    /// // because Reactive as a whole must be thread safe
     /// let change_log: Arc<Mutex<Vec<String>>> = Default::default();
     ///
     /// // add an observer function to keep a log of all the updates done to the reactive.
@@ -54,6 +57,56 @@ impl<T> Reactive<T> {
     /// ```
     pub fn add_observer(&self, f: impl FnMut(&T) + Send + 'static) {
         self.inner.lock().unwrap().observers.push(Box::new(f));
+    }
+
+    /// Update the value inside the reactive and notify all the observers
+    /// by calling the added observer functions in the sequence they were added
+    /// without checking if the value is changed after applying the provided function
+    ///
+    /// # Examples
+    /// ```
+    /// use reactivate::Reactive;
+    ///
+    /// let r = Reactive::new(10);
+    /// let d = r.derive(|val| val + 5);
+    ///
+    /// r.update(|_| 20);
+    ///
+    /// // would still notify the observers even if the value didn't change
+    /// r.update_unchecked(|_| 20);
+    ///
+    /// assert_eq!(25, d.value());
+    /// ```
+    pub fn update_unchecked(&self, f: impl Fn(&T) -> T) {
+        self.inner.lock().unwrap().update_unchecked(f);
+    }
+
+    /// Updates the value inside inplace without creating a new clone/copy and notify
+    /// all the observers by calling the added observer functions in the sequence they were added
+    /// without checking if the value is changed after applying the provided function.
+    ///
+    /// Perfer this when the datatype inside is expensive to clone, like a vector.
+    ///
+    /// # Examples
+    /// ```
+    /// use reactivate::Reactive;
+    ///
+    /// let r = Reactive::new(vec![1, 2, 3]);
+    /// let d = r.derive(|nums| nums.iter().sum::<i32>());
+    ///
+    /// r.update_inplace_unchecked(|nums| {
+    ///     nums.push(4);
+    ///     nums.push(5);
+    ///     nums.push(6);
+    /// });
+    ///
+    /// // would still notify the observers even if the value didn't change
+    /// r.update_inplace_unchecked(|_| {});
+    ///
+    /// assert_eq!(21, d.value());
+    /// ```
+    pub fn update_inplace_unchecked(&self, f: impl Fn(&mut T)) {
+        self.inner.lock().unwrap().update_inplace_unchecked(f);
     }
 }
 
@@ -100,9 +153,9 @@ impl<T: Clone> Reactive<T> {
 }
 
 impl<T: PartialEq> Reactive<T> {
-    /// Update the value inside the reactive.
-    /// This will also notify all the observers by calling the added observer functions
-    /// in the sequence they were added.
+    /// Update the value inside the reactive and notify all the observers
+    /// by calling the added observer functions in the sequence they were added
+    /// **ONLY** if the value changes after applying the provided function
     ///
     /// # Examples
     /// ```
@@ -121,7 +174,10 @@ impl<T: PartialEq> Reactive<T> {
 }
 
 impl<T: Hash> Reactive<T> {
-    /// Updates the value inside inplace without creating a new clone/copy.
+    /// Updates the value inside inplace without creating a new clone/copy and notify
+    /// all the observers by calling the added observer functions in the sequence they were added
+    /// **ONLY** if the value changes after applying the provided function.
+    ///
     /// Perfer this when the datatype inside is expensive to clone, like a vector.
     ///
     /// # Examples
@@ -152,11 +208,32 @@ impl<T: Debug> Debug for Reactive<T> {
     }
 }
 
+/// This trait is used for implementing variadic generics.
+///
+/// The main goal is to convert a tuple (can be implemented for other types too)
+/// of reactives of arbitrary size
+///     `(&Reactive<usize>, &Reactive<String>, &Reactive<f64>, ...)`
+///
+/// to a tuple of their inner values
+///     `(usize, String, f64, ...)`
+///
+/// Default implementations for tuples is already provided (see `impl_merge_for_tuple` macro)
+/// ```
+/// use reactivate::{Reactive, Merge};
+///
+/// let r1: Reactive<usize> = Reactive::default();
+/// let r2: Reactive<String> = Reactive::default();
+/// let r3: Reactive<f64> = Reactive::default();
+///
+/// let r: Reactive<(usize, String, f64)> = (&r1, &r2, &r3).merge();
+///
+/// ```
 pub trait Merge {
     type Output;
     fn merge(self) -> Reactive<Self::Output>;
 }
 
+/// The purpose of this struct is to reduce boilerplate code when working with `Reactive`
 #[derive(Default)]
 struct ReactiveInner<T> {
     value: T,
@@ -168,6 +245,20 @@ impl<T> ReactiveInner<T> {
         Self {
             value,
             observers: vec![],
+        }
+    }
+
+    fn update_unchecked(&mut self, f: impl Fn(&T) -> T) {
+        self.value = f(&self.value);
+        for obs in &mut self.observers {
+            obs(&self.value);
+        }
+    }
+
+    fn update_inplace_unchecked(&mut self, f: impl Fn(&mut T)) {
+        f(&mut self.value);
+        for obs in &mut self.observers {
+            obs(&self.value);
         }
     }
 }

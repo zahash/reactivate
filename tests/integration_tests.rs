@@ -24,6 +24,53 @@ fn can_update() {
 }
 
 #[test]
+fn update_only_notifies_observers_when_value_changes() {
+    let r: Reactive<String> = Reactive::default();
+    let changes: Arc<Mutex<Vec<String>>> = Default::default();
+
+    r.add_observer({
+        let changes = changes.clone();
+        move |val| changes.lock().unwrap().push(val.clone())
+    });
+
+    r.update(|_| String::from("a"));
+    r.update(|_| String::from("a"));
+    r.update(|_| String::from("b"));
+    r.update(|_| String::from("b"));
+
+    assert_eq!(
+        vec![String::from("a"), String::from("b")],
+        changes.lock().unwrap().clone()
+    );
+}
+
+#[test]
+fn update_unchecked_notifies_observers_without_checking_if_value_changed() {
+    let r: Reactive<String> = Reactive::default();
+    let changes: Arc<Mutex<Vec<String>>> = Default::default();
+
+    r.add_observer({
+        let changes = changes.clone();
+        move |val| changes.lock().unwrap().push(val.clone())
+    });
+
+    r.update_unchecked(|_| String::from("a"));
+    r.update_unchecked(|_| String::from("a"));
+    r.update_unchecked(|_| String::from("b"));
+    r.update_unchecked(|_| String::from("b"));
+
+    assert_eq!(
+        vec![
+            String::from("a"),
+            String::from("a"),
+            String::from("b"),
+            String::from("b")
+        ],
+        changes.lock().unwrap().clone()
+    );
+}
+
+#[test]
 fn can_update_inplace() {
     let r = Reactive::new(vec![1, 2, 3]);
     let d = r.derive(|nums| nums.iter().sum::<i32>());
@@ -35,6 +82,52 @@ fn can_update_inplace() {
     });
 
     assert_eq!(21, d.value());
+}
+
+#[test]
+fn update_inplace_only_notifies_observers_when_value_changes() {
+    let r: Reactive<String> = Reactive::default();
+    let changes: Arc<Mutex<Vec<String>>> = Default::default();
+
+    r.add_observer({
+        let changes = changes.clone();
+        move |val| changes.lock().unwrap().push(val.clone())
+    });
+
+    r.update_inplace(|s| s.push('a'));
+    r.update_inplace(|s| {
+        s.push('x');
+        s.pop();
+    });
+    r.update_inplace(|s| s.push('b'));
+
+    assert_eq!(
+        vec![String::from("a"), String::from("ab")],
+        changes.lock().unwrap().clone()
+    );
+}
+
+#[test]
+fn update_inplace_unchecked_notifies_observers_without_checking_if_value_changed() {
+    let r: Reactive<String> = Reactive::default();
+    let changes: Arc<Mutex<Vec<String>>> = Default::default();
+
+    r.add_observer({
+        let changes = changes.clone();
+        move |val| changes.lock().unwrap().push(val.clone())
+    });
+
+    r.update_inplace_unchecked(|s| s.push('a'));
+    r.update_inplace_unchecked(|s| {
+        s.push('x');
+        s.pop();
+    });
+    r.update_inplace_unchecked(|s| s.push('b'));
+
+    assert_eq!(
+        vec![String::from("a"), String::from("a"), String::from("ab")],
+        changes.lock().unwrap().clone()
+    );
 }
 
 #[test]
