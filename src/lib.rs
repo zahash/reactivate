@@ -70,13 +70,22 @@ impl<T> Reactive<T> {
     /// let r = Reactive::new(10);
     /// let d = r.derive(|val| val + 5);
     ///
-    /// r.update(|_| 20);
+    /// // notifies the observers as usual because value changed from 10 to 20
+    /// r.update_unchecked(|_| 20);
+    ///
+    /// assert_eq!(25, d.value());
     ///
     /// // would still notify the observers even if the value didn't change
     /// r.update_unchecked(|_| 20);
     ///
     /// assert_eq!(25, d.value());
     /// ```
+    ///
+    /// # Reasons to use
+    /// `update_unchecked` doesn't require `PartialEq` trait bounds on `T`
+    /// because the old value and the new value (after applying `f`) aren't compared.
+    ///
+    /// It is also faster than `update` for that reason
     pub fn update_unchecked(&self, f: impl Fn(&T) -> T) {
         self.inner.lock().unwrap().update_unchecked(f);
     }
@@ -94,17 +103,30 @@ impl<T> Reactive<T> {
     /// let r = Reactive::new(vec![1, 2, 3]);
     /// let d = r.derive(|nums| nums.iter().sum::<i32>());
     ///
+    /// // notifies the observers as usual because value changed from [1, 2, 3] to [1, 2, 3, 4, 5, 6]
     /// r.update_inplace_unchecked(|nums| {
     ///     nums.push(4);
     ///     nums.push(5);
     ///     nums.push(6);
     /// });
     ///
+    /// assert_eq!(21, d.value());
+    ///
     /// // would still notify the observers even if the value didn't change
-    /// r.update_inplace_unchecked(|_| {});
+    /// r.update_inplace_unchecked(|nums| {
+    ///     nums.push(100);
+    ///     nums.pop();
+    /// });
     ///
     /// assert_eq!(21, d.value());
     /// ```
+    ///
+    /// # Reasons to use
+    /// `update_inplace_unchecked` doesn't require `Hash` trait bounds on `T`
+    /// because the hashes of old value and the new value (after applying `f`)
+    /// aren't calculated and compared.
+    ///
+    /// It is also faster than `update_inplace` for that reason
     pub fn update_inplace_unchecked(&self, f: impl Fn(&mut T)) {
         self.inner.lock().unwrap().update_inplace_unchecked(f);
     }
