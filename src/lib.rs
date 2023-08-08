@@ -17,6 +17,7 @@ pub struct Reactive<T> {
 
 impl<T> Reactive<T> {
     /// Constructs a new Reactive<T>
+    ///
     /// # Examples
     /// ```
     /// use reactivate::Reactive;
@@ -31,6 +32,7 @@ impl<T> Reactive<T> {
 
     /// Adds a new observer to the reactive.
     /// the observer functions are called whenever the value inside the Reactive is updated
+    ///
     /// # Examples
     /// ```
     /// use reactivate::Reactive;
@@ -224,6 +226,36 @@ impl<T> Reactive<T> {
     {
         self.inner.lock().unwrap().update_inplace(f);
     }
+
+    /// Notify all the observers of the current value by calling the
+    /// added observer functions in the sequence they were added
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use reactivate::Reactive;
+    /// use std::sync::{Arc, Mutex};
+    ///
+    /// let r: Reactive<String> = Reactive::new(String::from("🦀"));
+    /// let change_log: Arc<Mutex<Vec<String>>> = Default::default();
+    ///
+    /// r.add_observer({
+    ///     let change_log = change_log.clone();
+    ///     move |val| change_log.lock().unwrap().push(val.clone())
+    /// });
+    ///
+    /// r.notify();
+    /// r.notify();
+    /// r.notify();
+    ///
+    /// assert_eq!(
+    /// vec![String::from("🦀"), String::from("🦀"), String::from("🦀"),],
+    ///     change_log.lock().unwrap().clone()
+    /// );
+    /// ```    
+    pub fn notify(&self) {
+        self.inner.lock().unwrap().notify();
+    }
 }
 
 impl<T: Debug> Debug for Reactive<T> {
@@ -280,16 +312,12 @@ impl<T> ReactiveInner<T> {
 
     fn update_unchecked(&mut self, f: impl Fn(&T) -> T) {
         self.value = f(&self.value);
-        for obs in &mut self.observers {
-            obs(&self.value);
-        }
+        self.notify();
     }
 
     fn update_inplace_unchecked(&mut self, f: impl Fn(&mut T)) {
         f(&mut self.value);
-        for obs in &mut self.observers {
-            obs(&self.value);
-        }
+        self.notify();
     }
 
     fn update(&mut self, f: impl Fn(&T) -> T)
@@ -299,9 +327,7 @@ impl<T> ReactiveInner<T> {
         let new_value = f(&self.value);
         if new_value != self.value {
             self.value = new_value;
-            for obs in &mut self.observers {
-                obs(&self.value);
-            }
+            self.notify();
         }
     }
 
@@ -324,9 +350,13 @@ impl<T> ReactiveInner<T> {
         };
 
         if old_hash != new_hash {
-            for obs in &mut self.observers {
-                obs(&self.value);
-            }
+            self.notify();
+        }
+    }
+
+    fn notify(&mut self) {
+        for obs in &mut self.observers {
+            obs(&self.value);
         }
     }
 }

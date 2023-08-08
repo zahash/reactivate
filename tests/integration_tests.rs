@@ -199,3 +199,23 @@ fn can_merge() {
     a.update(|_| String::from("mouse"));
     assert_eq!(10, d.value());
 }
+
+#[test]
+fn can_notify() {
+    let r: Reactive<String> = Reactive::new(String::from("🦀"));
+    let change_log: Arc<Mutex<Vec<String>>> = Default::default();
+
+    r.add_observer({
+        let change_log = change_log.clone();
+        move |val| change_log.lock().unwrap().push(val.clone())
+    });
+
+    r.notify();
+    r.notify();
+    r.notify();
+
+    assert_eq!(
+        vec![String::from("🦀"), String::from("🦀"), String::from("🦀"),],
+        change_log.lock().unwrap().clone()
+    );
+}
