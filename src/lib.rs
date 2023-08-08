@@ -94,7 +94,7 @@ impl<T> Reactive<T> {
     /// all the observers by calling the added observer functions in the sequence they were added
     /// without checking if the value is changed after applying the provided function.
     ///
-    /// Perfer this when the datatype inside is expensive to clone, like a vector.
+    /// Prefer this when the datatype inside is expensive to clone, like a vector.
     ///
     /// # Examples
     /// ```
@@ -130,9 +130,7 @@ impl<T> Reactive<T> {
     pub fn update_inplace_unchecked(&self, f: impl Fn(&mut T)) {
         self.inner.lock().unwrap().update_inplace_unchecked(f);
     }
-}
 
-impl<T: Clone> Reactive<T> {
     /// Returns a clone/copy of the value inside the reactive
     ///
     /// # Examples
@@ -142,7 +140,10 @@ impl<T: Clone> Reactive<T> {
     /// let r = Reactive::new(String::from("🦀"));
     /// assert_eq!("🦀", r.value());
     /// ```
-    pub fn value(&self) -> T {
+    pub fn value(&self) -> T
+    where
+        T: Clone,
+    {
         self.inner.lock().unwrap().value.clone()
     }
 
@@ -158,10 +159,11 @@ impl<T: Clone> Reactive<T> {
     ///
     /// assert_eq!(15, d.value());
     /// ```
-    pub fn derive<U: Default + Clone + PartialEq + Send + 'static>(
-        &self,
-        f: impl Fn(&T) -> U + Send + 'static,
-    ) -> Reactive<U> {
+    pub fn derive<U>(&self, f: impl Fn(&T) -> U + Send + 'static) -> Reactive<U>
+    where
+        T: Clone,
+        U: Default + Clone + PartialEq + Send + 'static,
+    {
         let derived_val = f(&self.value());
         let derived: Reactive<U> = Reactive::new(derived_val);
 
@@ -172,9 +174,7 @@ impl<T: Clone> Reactive<T> {
 
         derived
     }
-}
 
-impl<T: PartialEq> Reactive<T> {
     /// Update the value inside the reactive and notify all the observers
     /// by calling the added observer functions in the sequence they were added
     /// **ONLY** if the value changes after applying the provided function
@@ -190,17 +190,18 @@ impl<T: PartialEq> Reactive<T> {
     ///
     /// assert_eq!(25, d.value());
     /// ```
-    pub fn update(&self, f: impl Fn(&T) -> T) {
+    pub fn update(&self, f: impl Fn(&T) -> T)
+    where
+        T: PartialEq,
+    {
         self.inner.lock().unwrap().update(f);
     }
-}
 
-impl<T: Hash> Reactive<T> {
     /// Updates the value inside inplace without creating a new clone/copy and notify
     /// all the observers by calling the added observer functions in the sequence they were added
     /// **ONLY** if the value changes after applying the provided function.
     ///
-    /// Perfer this when the datatype inside is expensive to clone, like a vector.
+    /// Prefer this when the datatype inside is expensive to clone, like a vector.
     ///
     /// # Examples
     /// ```
@@ -217,7 +218,10 @@ impl<T: Hash> Reactive<T> {
     ///
     /// assert_eq!(21, d.value());
     /// ```
-    pub fn update_inplace(&self, f: impl Fn(&mut T)) {
+    pub fn update_inplace(&self, f: impl Fn(&mut T))
+    where
+        T: Hash,
+    {
         self.inner.lock().unwrap().update_inplace(f);
     }
 }
@@ -283,10 +287,11 @@ impl<T> ReactiveInner<T> {
             obs(&self.value);
         }
     }
-}
 
-impl<T: PartialEq> ReactiveInner<T> {
-    fn update(&mut self, f: impl Fn(&T) -> T) {
+    fn update(&mut self, f: impl Fn(&T) -> T)
+    where
+        T: PartialEq,
+    {
         let new_value = f(&self.value);
         if new_value != self.value {
             self.value = new_value;
@@ -295,10 +300,11 @@ impl<T: PartialEq> ReactiveInner<T> {
             }
         }
     }
-}
 
-impl<T: Hash> ReactiveInner<T> {
-    fn update_inplace(&mut self, f: impl Fn(&mut T)) {
+    fn update_inplace(&mut self, f: impl Fn(&mut T))
+    where
+        T: Hash,
+    {
         let old_hash = {
             let mut hasher = DefaultHasher::new();
             self.value.hash(&mut hasher);
