@@ -6,7 +6,7 @@ use std::{
     collections::hash_map::DefaultHasher,
     fmt::Debug,
     hash::{Hash, Hasher},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 /// Thread Safe Reactive Data Structure using the observer pattern
@@ -43,7 +43,7 @@ impl<T> Reactive<T> {
     where
         T: Clone,
     {
-        self.inner.lock().unwrap().value()
+        self.acq_lock().value()
     }
 
     /// derive a new child reactive that changes whenever the parent reactive changes.
@@ -102,7 +102,7 @@ impl<T> Reactive<T> {
     /// );
     /// ```
     pub fn add_observer(&self, f: impl FnMut(&T) + Send + 'static) {
-        self.inner.lock().unwrap().add_observer(f);
+        self.acq_lock().add_observer(f);
     }
 
     /// Update the value inside the reactive and notify all the observers
@@ -133,7 +133,7 @@ impl<T> Reactive<T> {
     ///
     /// It is also faster than `update` for that reason
     pub fn update_unchecked(&self, f: impl Fn(&T) -> T) {
-        self.inner.lock().unwrap().update_unchecked(f);
+        self.acq_lock().update_unchecked(f);
     }
 
     /// Updates the value inside inplace without creating a new clone/copy and notify
@@ -174,7 +174,7 @@ impl<T> Reactive<T> {
     ///
     /// It is also faster than `update_inplace` for that reason
     pub fn update_inplace_unchecked(&self, f: impl Fn(&mut T)) {
-        self.inner.lock().unwrap().update_inplace_unchecked(f);
+        self.acq_lock().update_inplace_unchecked(f);
     }
 
     /// Update the value inside the reactive and notify all the observers
@@ -196,7 +196,7 @@ impl<T> Reactive<T> {
     where
         T: PartialEq,
     {
-        self.inner.lock().unwrap().update(f);
+        self.acq_lock().update(f);
     }
 
     /// Updates the value inside inplace without creating a new clone/copy and notify
@@ -224,7 +224,7 @@ impl<T> Reactive<T> {
     where
         T: Hash,
     {
-        self.inner.lock().unwrap().update_inplace(f);
+        self.acq_lock().update_inplace(f);
     }
 
     /// Notify all the observers of the current value by calling the
@@ -254,14 +254,18 @@ impl<T> Reactive<T> {
     /// );
     /// ```
     pub fn notify(&self) {
-        self.inner.lock().unwrap().notify();
+        self.acq_lock().notify();
+    }
+
+    fn acq_lock(&self) -> MutexGuard<'_, ReactiveInner<T>> {
+        self.inner.lock().unwrap()
     }
 }
 
 impl<T: Debug> Debug for Reactive<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Reactive")
-            .field(&self.inner.lock().unwrap().value)
+            .field(&self.acq_lock().value)
             .finish()
     }
 }
