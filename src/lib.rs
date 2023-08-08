@@ -56,7 +56,7 @@ impl<T> Reactive<T> {
     /// );
     /// ```
     pub fn add_observer(&self, f: impl FnMut(&T) + Send + 'static) {
-        self.inner.lock().unwrap().observers.push(Box::new(f));
+        self.inner.lock().unwrap().add_observer(f);
     }
 
     /// Update the value inside the reactive and notify all the observers
@@ -272,6 +272,10 @@ impl<T> ReactiveInner<T> {
             value,
             observers: vec![],
         }
+    }
+
+    pub fn add_observer(&mut self, f: impl FnMut(&T) + Send + 'static) {
+        self.observers.push(Box::new(f));
     }
 
     fn update_unchecked(&mut self, f: impl Fn(&T) -> T) {
