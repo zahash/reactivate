@@ -30,6 +30,50 @@ impl<T> Reactive<T> {
         }
     }
 
+    /// Returns a clone/copy of the value inside the reactive
+    ///
+    /// # Examples
+    /// ```
+    /// use reactivate::Reactive;
+    ///
+    /// let r = Reactive::new(String::from("🦀"));
+    /// assert_eq!("🦀", r.value());
+    /// ```
+    pub fn value(&self) -> T
+    where
+        T: Clone,
+    {
+        self.inner.lock().unwrap().value()
+    }
+
+    /// derive a new child reactive that changes whenever the parent reactive changes.
+    /// (achieved by adding an observer function to the parent reactive behind the scenes)
+    ///
+    /// # Examples
+    /// ```
+    /// use reactivate::Reactive;
+    ///
+    /// let r = Reactive::new(10);
+    /// let d = r.derive(|val| val + 5);
+    ///
+    /// assert_eq!(15, d.value());
+    /// ```
+    pub fn derive<U>(&self, f: impl Fn(&T) -> U + Send + 'static) -> Reactive<U>
+    where
+        T: Clone,
+        U: Default + Clone + PartialEq + Send + 'static,
+    {
+        let derived_val = f(&self.value());
+        let derived: Reactive<U> = Reactive::new(derived_val);
+
+        self.add_observer({
+            let derived = derived.clone();
+            move |value| derived.update(|_| f(value))
+        });
+
+        derived
+    }
+
     /// Adds a new observer to the reactive.
     /// the observer functions are called whenever the value inside the Reactive is updated
     ///
@@ -133,50 +177,6 @@ impl<T> Reactive<T> {
         self.inner.lock().unwrap().update_inplace_unchecked(f);
     }
 
-    /// Returns a clone/copy of the value inside the reactive
-    ///
-    /// # Examples
-    /// ```
-    /// use reactivate::Reactive;
-    ///
-    /// let r = Reactive::new(String::from("🦀"));
-    /// assert_eq!("🦀", r.value());
-    /// ```
-    pub fn value(&self) -> T
-    where
-        T: Clone,
-    {
-        self.inner.lock().unwrap().value.clone()
-    }
-
-    /// derive a new child reactive that changes whenever the parent reactive changes.
-    /// (achieved by adding an observer function to the parent reactive behind the scenes)
-    ///
-    /// # Examples
-    /// ```
-    /// use reactivate::Reactive;
-    ///
-    /// let r = Reactive::new(10);
-    /// let d = r.derive(|val| val + 5);
-    ///
-    /// assert_eq!(15, d.value());
-    /// ```
-    pub fn derive<U>(&self, f: impl Fn(&T) -> U + Send + 'static) -> Reactive<U>
-    where
-        T: Clone,
-        U: Default + Clone + PartialEq + Send + 'static,
-    {
-        let derived_val = f(&self.value());
-        let derived: Reactive<U> = Reactive::new(derived_val);
-
-        self.add_observer({
-            let derived = derived.clone();
-            move |value| derived.update(|_| f(value))
-        });
-
-        derived
-    }
-
     /// Update the value inside the reactive and notify all the observers
     /// by calling the added observer functions in the sequence they were added
     /// **ONLY** if the value changes after applying the provided function
@@ -252,7 +252,7 @@ impl<T> Reactive<T> {
     /// vec![String::from("🦀"), String::from("🦀"), String::from("🦀"),],
     ///     change_log.lock().unwrap().clone()
     /// );
-    /// ```    
+    /// ```
     pub fn notify(&self) {
         self.inner.lock().unwrap().notify();
     }
@@ -304,6 +304,13 @@ impl<T> ReactiveInner<T> {
             value,
             observers: vec![],
         }
+    }
+
+    fn value(&self) -> T
+    where
+        T: Clone,
+    {
+        self.value.clone()
     }
 
     pub fn add_observer(&mut self, f: impl FnMut(&T) + Send + 'static) {
