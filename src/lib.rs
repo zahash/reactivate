@@ -46,6 +46,19 @@ impl<T> Reactive<T> {
         self.acq_lock().value()
     }
 
+    /// Perform some action with the reference to the inner value.
+    ///
+    /// # Examples
+    /// ```
+    /// use reactivate::Reactive;
+    ///
+    /// let r = Reactive::new(String::from("🦀"));
+    /// r.with_value(|s| println!("{}", s));
+    /// ```
+    pub fn with_value(&self, f: impl FnOnce(&T)) {
+        self.acq_lock().with_value(f);
+    }
+
     /// derive a new child reactive that changes whenever the parent reactive changes.
     /// (achieved by adding an observer function to the parent reactive behind the scenes)
     ///
@@ -317,7 +330,11 @@ impl<T> ReactiveInner<T> {
         self.value.clone()
     }
 
-    pub fn add_observer(&mut self, f: impl FnMut(&T) + Send + 'static) {
+    fn with_value(&self, f: impl FnOnce(&T)) {
+        f(&self.value);
+    }
+
+    fn add_observer(&mut self, f: impl FnMut(&T) + Send + 'static) {
         self.observers.push(Box::new(f));
     }
 
