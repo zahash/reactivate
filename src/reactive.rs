@@ -7,7 +7,13 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-/// Thread Safe Reactive Data Structure using the observer pattern
+/// Thread Safe Reactive Data Structure
+/// # Examples
+/// ```
+/// use reactivate::Reactive;
+///
+/// let r = Reactive::new("🦀");
+/// ```
 #[derive(Clone, Default)]
 pub struct Reactive<T> {
     inner: Arc<Mutex<ReactiveBase<T>>>,

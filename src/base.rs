@@ -1,7 +1,6 @@
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
-    ops::Deref,
 };
 
 #[derive(Default)]
@@ -78,13 +77,5 @@ impl<T> ReactiveBase<T> {
         for obs in &mut self.observers {
             obs(&self.value);
         }
-    }
-}
-
-impl<T> Deref for ReactiveBase<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
     }
 }
