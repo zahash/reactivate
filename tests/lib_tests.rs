@@ -222,3 +222,16 @@ fn can_notify() {
         change_log.lock().unwrap().clone()
     );
 }
+
+#[test]
+fn can_access_inner() {
+    let r = Reactive::new(10);
+
+    r.with_inner(|inner| {
+        inner.update(|v| v + 10);
+        inner.update_inplace(|v| *v += 1);
+        inner.notify();
+    });
+
+    assert_eq!(21, r.value());
+}
