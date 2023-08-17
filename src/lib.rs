@@ -12,7 +12,7 @@ use std::{
 /// Thread Safe Reactive Data Structure using the observer pattern
 #[derive(Clone, Default)]
 pub struct Reactive<T> {
-    inner: Arc<Mutex<ReactiveInner<T>>>,
+    inner: Arc<Mutex<ReactiveBase<T>>>,
 }
 
 impl<T> Reactive<T> {
@@ -26,7 +26,7 @@ impl<T> Reactive<T> {
     /// ```
     pub fn new(value: T) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(ReactiveInner::new(value))),
+            inner: Arc::new(Mutex::new(ReactiveBase::new(value))),
         }
     }
 
@@ -270,7 +270,7 @@ impl<T> Reactive<T> {
         self.acq_lock().notify();
     }
 
-    fn acq_lock(&self) -> MutexGuard<'_, ReactiveInner<T>> {
+    fn acq_lock(&self) -> MutexGuard<'_, ReactiveBase<T>> {
         self.inner.lock().unwrap()
     }
 }
@@ -310,12 +310,12 @@ pub trait Merge {
 
 /// The purpose of this struct is to reduce boilerplate code when working with `Reactive`
 #[derive(Default)]
-struct ReactiveInner<T> {
+struct ReactiveBase<T> {
     value: T,
     observers: Vec<Box<dyn FnMut(&T) + Send>>,
 }
 
-impl<T> ReactiveInner<T> {
+impl<T> ReactiveBase<T> {
     const fn new(value: T) -> Self {
         Self {
             value,

@@ -187,17 +187,20 @@ fn is_threadsafe() {
 fn can_merge() {
     let a = Reactive::new(String::from("hazash"));
     let b = Reactive::new(0);
-    let d = (&a, &b)
-        .merge()
-        .derive(|(a_val, b_val)| a_val.len() + b_val);
+    let c = Reactive::new(0.);
 
-    assert_eq!(6, d.value());
+    let d = (&a, (&b, &c)).merge();
 
-    b.update(|_| 5);
-    assert_eq!(11, d.value());
+    assert_eq!((String::from("hazash"), (0, 0.)), d.value());
 
     a.update(|_| String::from("mouse"));
-    assert_eq!(10, d.value());
+    assert_eq!((String::from("mouse"), (0, 0.)), d.value());
+
+    b.update(|_| 5);
+    assert_eq!((String::from("mouse"), (5, 0.)), d.value());
+
+    c.update(|_| 2.);
+    assert_eq!((String::from("mouse"), (5, 2.)), d.value());
 }
 
 #[test]
