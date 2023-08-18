@@ -1,8 +1,13 @@
+<div align="center">
+
 # reactivate
 
-> Thread Safe Reactive Data Structure for Rust
-
+[![Crates.io](https://img.shields.io/crates/v/reactivate.svg)](https://crates.io/crates/reactivate)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+</div>
+
+> Thread Safe Reactive Data Structure for Rust
 
 ## Installation
 
