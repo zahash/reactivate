@@ -1,6 +1,5 @@
 //! Thread Safe Reactive Data Structure
 
-mod base;
 mod macros;
 mod merge;
 mod reactive;

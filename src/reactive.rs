@@ -1,11 +1,12 @@
-use crate::base::ReactiveBase;
-
 use std::{
+    collections::hash_map::RandomState,
     fmt::Debug,
-    hash::Hash,
-    ops::DerefMut,
+    hash::{BuildHasher, Hash},
+    ops::{Deref, DerefMut},
     sync::{Arc, Mutex, MutexGuard},
 };
+
+type Observer<T> = Box<dyn FnMut(&T) + Send>;
 
 /// Thread Safe Reactive Data Structure
 /// # Examples
@@ -16,7 +17,8 @@ use std::{
 /// ```
 #[derive(Clone, Default)]
 pub struct Reactive<T> {
-    inner: Arc<Mutex<ReactiveBase<T>>>,
+    value: Arc<Mutex<T>>,
+    observers: Arc<Mutex<Vec<Observer<T>>>>,
 }
 
 impl<T> Reactive<T> {
@@ -30,7 +32,8 @@ impl<T> Reactive<T> {
     /// ```
     pub fn new(value: T) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(ReactiveBase::new(value))),
+            value: Arc::new(Mutex::new(value)),
+            observers: Default::default(),
         }
     }
 
@@ -47,7 +50,7 @@ impl<T> Reactive<T> {
     where
         T: Clone,
     {
-        self.acq_lock().value().clone()
+        self.acq_val_lock().clone()
     }
 
     /// Perform some action with the reference to the inner value.
@@ -60,7 +63,36 @@ impl<T> Reactive<T> {
     /// r.with_value(|s| println!("{}", s));
     /// ```
     pub fn with_value(&self, f: impl FnOnce(&T)) {
-        self.acq_lock().with_value(f);
+        f(self.acq_val_lock().deref());
+    }
+
+    /// All the Reactive methods acquire and release locks for each method call.
+    /// It can be expensive if done repeatedly.
+    /// So instead, this method will give mutable access to the internal `value` and `observers`
+    /// to do as you please with them.
+    ///
+    /// Generally not recommended unless you know what you are doing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use reactivate::Reactive;
+    ///
+    /// let r = Reactive::new(10);
+    /// r.with(|val, obs| {
+    ///     *val += 11;
+    ///     for f in obs {
+    ///         f(val)
+    ///     }
+    /// });
+    ///
+    /// assert_eq!(21, r.value());
+    ///
+    /// ```
+    pub fn with(&self, f: impl FnOnce(&mut T, &mut [Observer<T>])) {
+        let mut val_guard = self.acq_val_lock();
+        let mut obs_guard = self.acq_obs_lock();
+        f(val_guard.deref_mut(), obs_guard.deref_mut());
     }
 
     /// derive a new child reactive that changes whenever the parent reactive changes.
@@ -119,7 +151,7 @@ impl<T> Reactive<T> {
     /// );
     /// ```
     pub fn add_observer(&self, f: impl FnMut(&T) + Send + 'static) {
-        self.acq_lock().add_observer(f);
+        self.acq_obs_lock().push(Box::new(f));
     }
 
     /// Update the value inside the reactive and notify all the observers
@@ -150,7 +182,13 @@ impl<T> Reactive<T> {
     ///
     /// It is also faster than `update` for that reason
     pub fn update_unchecked(&self, f: impl Fn(&T) -> T) {
-        self.acq_lock().update_unchecked(f);
+        let mut guard = self.acq_val_lock();
+        let val = guard.deref_mut();
+        *val = f(val);
+
+        for obs in self.acq_obs_lock().deref_mut() {
+            obs(val);
+        }
     }
 
     /// Updates the value inside inplace without creating a new clone/copy and notify
@@ -191,7 +229,13 @@ impl<T> Reactive<T> {
     ///
     /// It is also faster than `update_inplace` for that reason
     pub fn update_inplace_unchecked(&self, f: impl Fn(&mut T)) {
-        self.acq_lock().update_inplace_unchecked(f);
+        let mut guard = self.acq_val_lock();
+        let val = guard.deref_mut();
+        f(val);
+
+        for obs in self.acq_obs_lock().deref_mut() {
+            obs(val);
+        }
     }
 
     /// Update the value inside the reactive and notify all the observers
@@ -213,7 +257,16 @@ impl<T> Reactive<T> {
     where
         T: PartialEq,
     {
-        self.acq_lock().update(f);
+        let mut guard = self.acq_val_lock();
+        let val = guard.deref_mut();
+        let new_val = f(val);
+        if &new_val != val {
+            *val = new_val;
+
+            for obs in self.acq_obs_lock().deref_mut() {
+                obs(val);
+            }
+        }
     }
 
     /// Updates the value inside inplace without creating a new clone/copy and notify
@@ -241,7 +294,20 @@ impl<T> Reactive<T> {
     where
         T: Hash,
     {
-        self.acq_lock().update_inplace(f);
+        let random_state = RandomState::new();
+
+        let mut guard = self.acq_val_lock();
+        let val = guard.deref_mut();
+
+        let old_hash = random_state.hash_one(&val);
+        f(val);
+        let new_hash = random_state.hash_one(&val);
+
+        if old_hash != new_hash {
+            for obs in self.acq_obs_lock().deref_mut() {
+                obs(val);
+            }
+        }
     }
 
     /// Notify all the observers of the current value by calling the
@@ -271,42 +337,28 @@ impl<T> Reactive<T> {
     /// );
     /// ```
     pub fn notify(&self) {
-        self.acq_lock().notify();
+        let guard = self.acq_val_lock();
+        let val = guard.deref();
+        for obs in self.acq_obs_lock().deref_mut() {
+            obs(val);
+        }
     }
 
-    /// All the Reactive methods acquire and release locks for each method call.
-    /// It can be expensive if done repeatedly.
-    /// So instead, this method will give mutable access to the inner `ReactiveBase`
-    /// to allow calling multiple methods with a single lock
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use reactivate::Reactive;
-    ///
-    /// let r = Reactive::new(10);
-    /// r.with_inner(|inner| {
-    ///     inner.update(|v| v + 10);
-    ///     inner.update_inplace(|v| *v += 1);
-    ///     inner.notify();
-    /// });
-    ///
-    /// assert_eq!(21, r.value());
-    ///
-    /// ```
-    pub fn with_inner(&self, f: impl FnOnce(&mut ReactiveBase<T>)) {
-        f(self.acq_lock().deref_mut());
+    fn acq_val_lock(&self) -> MutexGuard<'_, T> {
+        self.value.lock().expect("unable to acquire lock on value")
     }
 
-    fn acq_lock(&self) -> MutexGuard<'_, ReactiveBase<T>> {
-        self.inner.lock().unwrap()
+    fn acq_obs_lock(&self) -> MutexGuard<'_, Vec<Observer<T>>> {
+        self.observers
+            .lock()
+            .expect("unable to acquire lock on observers")
     }
 }
 
 impl<T: Debug> Debug for Reactive<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Reactive")
-            .field(self.acq_lock().value())
+            .field(self.acq_val_lock().deref())
             .finish()
     }
 }

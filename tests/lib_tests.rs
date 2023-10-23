@@ -224,13 +224,14 @@ fn can_notify() {
 }
 
 #[test]
-fn can_access_inner() {
+fn can_access_internals() {
     let r = Reactive::new(10);
 
-    r.with_inner(|inner| {
-        inner.update(|v| v + 10);
-        inner.update_inplace(|v| *v += 1);
-        inner.notify();
+    r.with(|val, obs| {
+        *val += 11;
+        for f in obs {
+            f(val)
+        }
     });
 
     assert_eq!(21, r.value());
