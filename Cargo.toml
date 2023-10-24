@@ -1,6 +1,6 @@
 [package]
 name = "reactivate"
-version = "0.2.8"
+version = "0.2.9"
 edition = "2021"
 authors = ["Zahash <zahash.z@gmail.com>"]
 description = "Thread Safe Reactive Data Structure. Made with ❤️ for 🦀"

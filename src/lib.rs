@@ -1,4 +1,4 @@
-//! Thread Safe Reactive Data Structure
+//! Thread Safe Reactive Data Structure. Made with ❤️ for 🦀
 
 mod macros;
 mod merge;
