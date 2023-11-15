@@ -16,7 +16,7 @@ Thread Safe Reactive Data Structure. Made with ❤️ for 🦀
 
 </div>
 
-## Installation
+## 🚀 Installation
 
 include it in your `Cargo.toml` under `[dependencies]`
 
@@ -24,9 +24,9 @@ include it in your `Cargo.toml` under `[dependencies]`
 reactivate = { version = "*" }
 ```
 
-## Usage examples
+## 🧑‍💻 Usage examples
 
-### Construction
+### 🏗️ Construction
 
 ```rust
 use reactivate::Reactive;
@@ -39,7 +39,7 @@ fn main() {
 }
 ```
 
-### Derive
+### 🔥 Derive
 
 ```rust
 use reactivate::Reactive;
@@ -53,7 +53,7 @@ fn main() {
 }
 ```
 
-### Update
+### ✨ Update
 
 ```rust
 use reactivate::Reactive;
@@ -69,7 +69,7 @@ fn main() {
 }
 ```
 
-### Update Inplace
+### ⚡ Update Inplace
 
 ```rust
 use reactivate::Reactive;
@@ -89,7 +89,7 @@ fn main() {
 }
 ```
 
-### Merge and Derive
+### 🤝 Merge and Derive
 
 ```rust
 use reactivate::{Merge, Reactive};
@@ -120,7 +120,7 @@ fn main() {
 }
 ```
 
-### Add Observers
+### 👀 Add Observers
 
 ```rust
 use reactivate::Reactive;
@@ -148,7 +148,7 @@ fn main() {
 }
 ```
 
-### With Threads
+### 🧵 With Threads
 
 ```rust
 use reactivate::Reactive;
@@ -181,7 +181,7 @@ fn main() {
 }
 ```
 
-## Meta
+## 🌟 Connect with Us
 
 M. Zahash – zahash.z@gmail.com
 
@@ -189,10 +189,14 @@ Distributed under the MIT license. See `LICENSE` for more information.
 
 [https://github.com/zahash/](https://github.com/zahash/)
 
-## Contributing
+## 🤝 Contribute to Reactivate!
 
 1. Fork it (<https://github.com/zahash/reactivate/fork>)
 2. Create your feature branch (`git checkout -b feature/fooBar`)
 3. Commit your changes (`git commit -am 'Add some fooBar'`)
 4. Push to the branch (`git push origin feature/fooBar`)
 5. Create a new Pull Request
+
+## ❤️ Show Some Love!
+
+If you find Reactivate helpful and enjoy using it, consider giving it a [⭐ on GitHub!](https://github.com/zahash/reactivate/stargazers) Your star is a gesture of appreciation and encouragement for the continuous improvement of Reactivate.
