@@ -238,6 +238,31 @@ impl<T> Reactive<T> {
         }
     }
 
+    /// Set the value inside the reactive to something new and notify all the observers
+    /// by calling the added observer functions in the sequence they were added
+    /// (even if the provided value is the same as the current one)
+    ///
+    /// # Examples
+    /// ```
+    /// use reactivate::Reactive;
+    ///
+    /// let r = Reactive::new(10);
+    /// let d = r.derive(|val| val + 5);
+    ///
+    /// r.set(20);
+    ///
+    /// assert_eq!(25, d.value());
+    /// ```
+    pub fn set(&self, val: T) {
+        let mut guard = self.acq_val_lock();
+        let curr_val = guard.deref_mut();
+        *curr_val = val;
+
+        for obs in self.acq_obs_lock().deref_mut() {
+            obs(curr_val);
+        }
+    }
+
     /// Update the value inside the reactive and notify all the observers
     /// by calling the added observer functions in the sequence they were added
     /// **ONLY** if the value changes after applying the provided function

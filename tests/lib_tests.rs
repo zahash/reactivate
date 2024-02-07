@@ -14,12 +14,24 @@ fn initial_derived_values_must_not_be_default() {
 }
 
 #[test]
+fn can_set() {
+    let r = Reactive::new(10);
+    let d = r.derive(|val| val + 35);
+
+    r.set(34);
+
+    assert_eq!(34, r.value());
+    assert_eq!(69, d.value());
+}
+
+#[test]
 fn can_update() {
     let r = Reactive::new(10);
     let d = r.derive(|val| val + 5);
 
     r.update(|_| 20);
 
+    assert_eq!(20, r.value());
     assert_eq!(25, d.value());
 }
 
@@ -81,6 +93,7 @@ fn can_update_inplace() {
         nums.push(6);
     });
 
+    assert_eq!(r.value(), vec![1, 2, 3, 4, 5, 6]);
     assert_eq!(21, d.value());
 }
 
