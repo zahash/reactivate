@@ -181,7 +181,7 @@ impl<T> Reactive<T> {
     /// because the old value and the new value (after applying `f`) aren't compared.
     ///
     /// It is also faster than `update` for that reason
-    pub fn update_unchecked(&self, f: impl Fn(&T) -> T) {
+    pub fn update_unchecked(&self, f: impl FnOnce(&T) -> T) {
         let mut guard = self.acq_val_lock();
         let val = guard.deref_mut();
         *val = f(val);
@@ -228,7 +228,7 @@ impl<T> Reactive<T> {
     /// aren't calculated and compared.
     ///
     /// It is also faster than `update_inplace` for that reason
-    pub fn update_inplace_unchecked(&self, f: impl Fn(&mut T)) {
+    pub fn update_inplace_unchecked(&self, f: impl FnOnce(&mut T)) {
         let mut guard = self.acq_val_lock();
         let val = guard.deref_mut();
         f(val);
@@ -278,7 +278,7 @@ impl<T> Reactive<T> {
     ///
     /// assert_eq!(25, d.value());
     /// ```
-    pub fn update(&self, f: impl Fn(&T) -> T)
+    pub fn update(&self, f: impl FnOnce(&T) -> T)
     where
         T: PartialEq,
     {
@@ -315,7 +315,7 @@ impl<T> Reactive<T> {
     ///
     /// assert_eq!(21, d.value());
     /// ```
-    pub fn update_inplace(&self, f: impl Fn(&mut T))
+    pub fn update_inplace(&self, f: impl FnOnce(&mut T))
     where
         T: Hash,
     {
