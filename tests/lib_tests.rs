@@ -35,6 +35,26 @@ fn can_update() {
     assert_eq!(25, d.value());
 }
 
+#[tokio::test]
+async fn can_update_async() {
+    let r = Reactive::new(10);
+    let d = r.derive(|val| val + 5);
+
+    assert_eq!(10, r.value());
+    assert_eq!(15, d.value());
+
+    r.update_async(|_| async { 20 }).await;
+
+    assert_eq!(20, r.value());
+    assert_eq!(25, d.value());
+
+    let _ = r.update_async(|_| async { 30 });
+
+    // no await => no update
+    assert_eq!(20, r.value());
+    assert_eq!(25, d.value());
+}
+
 #[test]
 fn update_only_notifies_observers_when_value_changes() {
     let r: Reactive<String> = Reactive::default();

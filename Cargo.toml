@@ -9,3 +9,6 @@ repository = "https://github.com/zahash/reactivate"
 
 [dependencies]
 paste = { version = "1" }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }

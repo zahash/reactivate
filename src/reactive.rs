@@ -1,6 +1,7 @@
 use std::{
     collections::hash_map::RandomState,
     fmt::Debug,
+    future::Future,
     hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut},
     sync::{Arc, Mutex, MutexGuard},
@@ -285,6 +286,23 @@ impl<T> Reactive<T> {
         let mut guard = self.acq_val_lock();
         let val = guard.deref_mut();
         let new_val = f(val);
+        if &new_val != val {
+            *val = new_val;
+
+            for obs in self.acq_obs_lock().deref_mut() {
+                obs(val);
+            }
+        }
+    }
+
+    pub async fn update_async<Fut>(&self, f: impl FnOnce(&T) -> Fut)
+    where
+        T: PartialEq,
+        Fut: Future<Output = T>,
+    {
+        let mut guard = self.acq_val_lock();
+        let val = guard.deref_mut();
+        let new_val = f(val).await;
         if &new_val != val {
             *val = new_val;
 
