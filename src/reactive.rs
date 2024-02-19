@@ -295,15 +295,45 @@ impl<T> Reactive<T> {
         }
     }
 
+    /// Update the value inside the reactive asynchronously and notify all the observers
+    /// by calling the added observer functions in the sequence they were added
+    /// **ONLY** if the value changes after applying the provided asynchronous function
+    ///
+    /// # Examples
+    /// ```
+    ///
+    /// use reactivate::Reactive;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let r = Reactive::new(10);
+    /// let d = r.derive(|val| val + 5);
+    ///
+    /// assert_eq!(10, r.value());
+    /// assert_eq!(15, d.value());
+    ///
+    /// r.update_async(|_| async { 20 }).await;
+    ///
+    /// assert_eq!(20, r.value());
+    /// assert_eq!(25, d.value());
+    ///
+    /// r.update_async(|_| async { 30 });
+    ///
+    /// // no await => no update
+    /// assert_eq!(20, r.value());
+    /// assert_eq!(25, d.value());
+    /// # }
+    /// ```
     pub async fn update_async<Fut>(&self, f: impl FnOnce(&T) -> Fut)
     where
         T: PartialEq,
         Fut: Future<Output = T>,
     {
         let mut guard = self.acq_val_lock();
-        let val = guard.deref_mut();
-        let new_val = f(val).await;
+        let val = guard.deref();
+        let new_val = f(guard.deref()).await;
         if &new_val != val {
+            let val = guard.deref_mut();
             *val = new_val;
 
             for obs in self.acq_obs_lock().deref_mut() {
