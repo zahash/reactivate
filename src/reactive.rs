@@ -1,7 +1,6 @@
 use std::{
     collections::hash_map::RandomState,
     fmt::Debug,
-    future::Future,
     hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut},
     sync::{Arc, Mutex, MutexGuard},
