@@ -9,7 +9,7 @@ use crate::Reactive;
 /// to a tuple of their inner values
 ///     `(usize, String, f64, ...)`
 ///
-/// Default implementations for tuples is already provided (see `impl_merge_for_tuple` macro)
+/// Default implementations for tuples is already provided (see `impl_merge_for_nested_tuple` macro)
 /// ```
 /// use reactivate::{Reactive, Merge};
 ///
