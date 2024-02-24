@@ -231,21 +231,72 @@ fn can_merge() {
 #[test]
 fn can_notify() {
     let r: Reactive<String> = Reactive::new(String::from("🦀"));
-    let change_log: Arc<Mutex<Vec<String>>> = Default::default();
+    let record: Arc<Mutex<Vec<String>>> = Default::default();
 
     r.add_observer({
-        let change_log = change_log.clone();
+        let change_log = record.clone();
         move |val| change_log.lock().unwrap().push(val.clone())
+    });
+    r.add_observer({
+        let change_log = record.clone();
+        move |_| change_log.lock().unwrap().push(String::from("a"))
+    });
+    r.add_observer({
+        let change_log = record.clone();
+        move |_| change_log.lock().unwrap().push(String::from("b"))
     });
 
     r.notify();
     r.notify();
-    r.notify();
 
     assert_eq!(
-        vec![String::from("🦀"), String::from("🦀"), String::from("🦀"),],
-        change_log.lock().unwrap().clone()
+        vec![
+            String::from("🦀"),
+            String::from("a"),
+            String::from("b"),
+            String::from("🦀"),
+            String::from("a"),
+            String::from("b")
+        ],
+        record.lock().unwrap().clone()
     );
+}
+
+#[test]
+#[cfg(feature = "parallel")]
+fn can_parallel_notify() {
+    let mut r: Reactive<String> = Reactive::new(String::from("zahash"));
+    let record: Arc<Mutex<Vec<usize>>> = Default::default();
+
+    r.add_observer({
+        let record = record.clone();
+        move |s| record.lock().unwrap().push(s.len())
+    });
+    for i in 10..=100 {
+        r.add_observer({
+            let record = record.clone();
+            move |_| record.lock().unwrap().push(i)
+        });
+    }
+
+    r.notify();
+
+    // sequential by default
+    let mut expected = vec![6];
+    expected.extend(10..=100);
+    assert_eq!(expected, record.lock().unwrap().clone());
+
+    record.lock().unwrap().clear();
+
+    r.enable_parallel_notification();
+    r.notify();
+
+    // the order of calling observers is not sequential.
+    let mut result = record.lock().unwrap().clone();
+    assert_ne!(expected, result);
+    expected.sort();
+    result.sort();
+    assert_eq!(expected, result);
 }
 
 #[test]

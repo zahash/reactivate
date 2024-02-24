@@ -11,6 +11,7 @@ where
     }
 }
 
+#[cfg(not(feature = "parallel"))]
 macro_rules! impl_merge_for_nested_tuple {
     ( $($i:literal),* ) => { paste!{
     impl < $( [<T $i>], )* > Merge for ( $( [<T $i>], )* )
@@ -18,6 +19,26 @@ macro_rules! impl_merge_for_nested_tuple {
         $( [<T $i>]: Merge, ) *
         $( [<T $i>]::Output: Clone + Default + Send + 'static, ) *
     {
+        body!($($i),*);
+    }
+    }};
+}
+
+#[cfg(feature = "parallel")]
+macro_rules! impl_merge_for_nested_tuple {
+    ( $($i:literal),* ) => { paste!{
+    impl < $( [<T $i>], )* > Merge for ( $( [<T $i>], )* )
+    where
+        $( [<T $i>]: Merge + Sync, ) *
+        $( [<T $i>]::Output: Clone + Default + Send + Sync + 'static, ) *
+    {
+        body!($($i),*);
+    }
+    }};
+}
+
+macro_rules! body {
+    ( $($i:literal),* ) => {paste!{
         type Output = ( $([<T $i>]::Output,)* );
 
         fn merge(self) -> Reactive<Self::Output> {
@@ -37,7 +58,6 @@ macro_rules! impl_merge_for_nested_tuple {
 
             combined
         }
-    }
     }};
 }
 

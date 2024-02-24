@@ -19,6 +19,9 @@ type Observer<T> = Box<dyn FnMut(&T) + Send>;
 pub struct Reactive<T> {
     value: Arc<Mutex<T>>,
     observers: Arc<Mutex<Vec<Observer<T>>>>,
+
+    #[cfg(feature = "parallel")]
+    parallel_notification: bool,
 }
 
 impl<T> Reactive<T> {
@@ -34,7 +37,53 @@ impl<T> Reactive<T> {
         Self {
             value: Arc::new(Mutex::new(value)),
             observers: Default::default(),
+
+            #[cfg(feature = "parallel")]
+            parallel_notification: false,
         }
+    }
+
+    /// Enables parallel notification for the Reactive structure.
+    /// When parallel notification is enabled, observer functions added to the Reactive object
+    /// will be called in parallel using Rayon's parallel iterators whenever the reactive value is updated.
+    /// This can improve performance when handling a large number of observers and
+    /// when the observers can be executed independently.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[cfg(feature = "parallel")]
+    /// # {
+    /// use reactivate::Reactive;
+    ///
+    /// let mut r = Reactive::new(10);
+    /// r.enable_parallel_notification();
+    /// # }
+    /// ```
+    #[cfg(feature = "parallel")]
+    pub fn enable_parallel_notification(&mut self) {
+        self.parallel_notification = true;
+    }
+
+    /// Disables parallel notification for the Reactive structure.
+    /// When parallel notification is disabled, observer functions added to the Reactive object
+    /// will be called sequentially whenever the reactive value is updated.
+    /// This is the default behavior.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[cfg(feature = "parallel")]
+    /// # {
+    /// use reactivate::Reactive;
+    ///
+    /// let mut r = Reactive::new(10);
+    /// r.disable_parallel_notification();
+    /// # }
+    /// ```
+    #[cfg(feature = "parallel")]
+    pub fn disable_parallel_notification(&mut self) {
+        self.parallel_notification = false;
     }
 
     /// Returns a clone/copy of the value inside the reactive
@@ -107,7 +156,10 @@ impl<T> Reactive<T> {
     ///
     /// assert_eq!(15, d.value());
     /// ```
-    pub fn derive<U>(&self, f: impl Fn(&T) -> U + Send + 'static) -> Reactive<U>
+    pub fn derive<#[cfg(not(feature = "parallel"))] U, #[cfg(feature = "parallel")] U: Sync>(
+        &self,
+        f: impl Fn(&T) -> U + Send + 'static,
+    ) -> Reactive<U>
     where
         T: Clone,
         U: Clone + PartialEq + Send + 'static,
@@ -174,6 +226,26 @@ impl<T> Reactive<T> {
         self.acq_obs_lock().clear();
     }
 
+    #[cfg(not(feature = "parallel"))]
+    fn call_observers(&self, val: &T) {
+        for obs in self.acq_obs_lock().deref_mut() {
+            obs(val);
+        }
+    }
+
+    fn acq_val_lock(&self) -> MutexGuard<'_, T> {
+        self.value.lock().expect("unable to acquire lock on value")
+    }
+
+    fn acq_obs_lock(&self) -> MutexGuard<'_, Vec<Observer<T>>> {
+        self.observers
+            .lock()
+            .expect("unable to acquire lock on observers")
+    }
+}
+
+// #[cfg(not(feature = "parallel"))] T, #[cfg(feature = "parallel")] T: Sync
+impl<#[cfg(not(feature = "parallel"))] T, #[cfg(feature = "parallel")] T: Sync> Reactive<T> {
     /// Update the value inside the reactive and notify all the observers
     /// by calling the added observer functions in the sequence they were added
     /// without checking if the value is changed after applying the provided function
@@ -366,20 +438,21 @@ impl<T> Reactive<T> {
         self.call_observers(guard.deref());
     }
 
+    #[cfg(feature = "parallel")]
     fn call_observers(&self, val: &T) {
-        for obs in self.acq_obs_lock().deref_mut() {
-            obs(val);
+        use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+        match self.parallel_notification {
+            true => self
+                .acq_obs_lock()
+                .deref_mut()
+                .par_iter_mut()
+                .for_each(|obs| obs(val)),
+            false => self
+                .acq_obs_lock()
+                .deref_mut()
+                .iter_mut()
+                .for_each(|obs| obs(val)),
         }
-    }
-
-    fn acq_val_lock(&self) -> MutexGuard<'_, T> {
-        self.value.lock().expect("unable to acquire lock on value")
-    }
-
-    fn acq_obs_lock(&self) -> MutexGuard<'_, Vec<Observer<T>>> {
-        self.observers
-            .lock()
-            .expect("unable to acquire lock on observers")
     }
 }
 
