@@ -112,7 +112,7 @@ impl<T> Reactive<T> {
         T: Clone,
         U: Clone + PartialEq + Send + 'static,
     {
-        let derived_val = f(&self.value());
+        let derived_val = f(self.acq_val_lock().deref());
         let derived: Reactive<U> = Reactive::new(derived_val);
 
         self.add_observer({
