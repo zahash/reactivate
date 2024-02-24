@@ -203,12 +203,8 @@ impl<T> Reactive<T> {
     /// It is also faster than `update` for that reason
     pub fn update_unchecked(&self, f: impl FnOnce(&T) -> T) {
         let mut guard = self.acq_val_lock();
-        let val = guard.deref_mut();
-        *val = f(val);
-
-        for obs in self.acq_obs_lock().deref_mut() {
-            obs(val);
-        }
+        *guard.deref_mut() = f(guard.deref());
+        self.call_observers(guard.deref());
     }
 
     /// Updates the value inside inplace without creating a new clone/copy and notify
@@ -250,12 +246,8 @@ impl<T> Reactive<T> {
     /// It is also faster than `update_inplace` for that reason
     pub fn update_inplace_unchecked(&self, f: impl FnOnce(&mut T)) {
         let mut guard = self.acq_val_lock();
-        let val = guard.deref_mut();
-        f(val);
-
-        for obs in self.acq_obs_lock().deref_mut() {
-            obs(val);
-        }
+        f(guard.deref_mut());
+        self.call_observers(guard.deref());
     }
 
     /// Set the value inside the reactive to something new and notify all the observers
@@ -275,12 +267,8 @@ impl<T> Reactive<T> {
     /// ```
     pub fn set(&self, val: T) {
         let mut guard = self.acq_val_lock();
-        let curr_val = guard.deref_mut();
-        *curr_val = val;
-
-        for obs in self.acq_obs_lock().deref_mut() {
-            obs(curr_val);
-        }
+        *guard.deref_mut() = val;
+        self.call_observers(guard.deref());
     }
 
     /// Update the value inside the reactive and notify all the observers
@@ -303,14 +291,10 @@ impl<T> Reactive<T> {
         T: PartialEq,
     {
         let mut guard = self.acq_val_lock();
-        let val = guard.deref_mut();
-        let new_val = f(val);
-        if &new_val != val {
-            *val = new_val;
-
-            for obs in self.acq_obs_lock().deref_mut() {
-                obs(val);
-            }
+        let new_val = f(guard.deref());
+        if &new_val != guard.deref() {
+            *guard.deref_mut() = new_val;
+            self.call_observers(guard.deref());
         }
     }
 
@@ -340,18 +324,14 @@ impl<T> Reactive<T> {
         T: Hash,
     {
         let random_state = RandomState::new();
-
         let mut guard = self.acq_val_lock();
-        let val = guard.deref_mut();
 
-        let old_hash = random_state.hash_one(&val);
-        f(val);
-        let new_hash = random_state.hash_one(&val);
+        let old_hash = random_state.hash_one(guard.deref());
+        f(guard.deref_mut());
+        let new_hash = random_state.hash_one(guard.deref());
 
         if old_hash != new_hash {
-            for obs in self.acq_obs_lock().deref_mut() {
-                obs(val);
-            }
+            self.call_observers(guard.deref());
         }
     }
 
@@ -383,7 +363,10 @@ impl<T> Reactive<T> {
     /// ```
     pub fn notify(&self) {
         let guard = self.acq_val_lock();
-        let val = guard.deref();
+        self.call_observers(guard.deref());
+    }
+
+    fn call_observers(&self, val: &T) {
         for obs in self.acq_obs_lock().deref_mut() {
             obs(val);
         }
