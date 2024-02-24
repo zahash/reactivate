@@ -110,7 +110,7 @@ impl<T> Reactive<T> {
     pub fn derive<U>(&self, f: impl Fn(&T) -> U + Send + 'static) -> Reactive<U>
     where
         T: Clone,
-        U: Default + Clone + PartialEq + Send + 'static,
+        U: Clone + PartialEq + Send + 'static,
     {
         let derived_val = f(&self.value());
         let derived: Reactive<U> = Reactive::new(derived_val);
