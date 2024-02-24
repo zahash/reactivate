@@ -154,6 +154,26 @@ impl<T> Reactive<T> {
         self.acq_obs_lock().push(Box::new(f));
     }
 
+    /// Clears all observers from the reactive.
+    ///
+    /// # Examples
+    /// ```
+    /// use reactivate::Reactive;
+    ///
+    /// let r = Reactive::new(10);
+    /// let d = r.derive(|val| val + 1);
+    ///
+    /// r.clear_observers();
+    /// r.update(|n| n * 2);
+    ///
+    /// assert_eq!(20, r.value());
+    /// // value of `d` didn't change because `r` cleared its observers
+    /// assert_eq!(11, d.value());
+    /// ```
+    pub fn clear_observers(&self) {
+        self.acq_obs_lock().clear();
+    }
+
     /// Update the value inside the reactive and notify all the observers
     /// by calling the added observer functions in the sequence they were added
     /// without checking if the value is changed after applying the provided function

@@ -166,6 +166,18 @@ fn can_add_observers() {
 }
 
 #[test]
+fn can_clear_observers() {
+    let r = Reactive::new(10);
+    let d = r.derive(|val| val + 1);
+
+    r.clear_observers();
+    r.update(|n| n * 2);
+
+    assert_eq!(20, r.value());
+    assert_eq!(11, d.value());
+}
+
+#[test]
 fn is_threadsafe() {
     let r: Reactive<String> = Reactive::default();
 
