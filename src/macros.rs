@@ -11,7 +11,7 @@ where
     }
 }
 
-#[cfg(not(feature = "parallel"))]
+#[cfg(not(feature = "parallel-notification"))]
 macro_rules! impl_merge_for_nested_tuple {
     ( $($i:literal),* ) => { paste!{
     impl < $( [<T $i>], )* > Merge for ( $( [<T $i>], )* )
@@ -24,7 +24,7 @@ macro_rules! impl_merge_for_nested_tuple {
     }};
 }
 
-#[cfg(feature = "parallel")]
+#[cfg(feature = "parallel-notification")]
 macro_rules! impl_merge_for_nested_tuple {
     ( $($i:literal),* ) => { paste!{
     impl < $( [<T $i>], )* > Merge for ( $( [<T $i>], )* )

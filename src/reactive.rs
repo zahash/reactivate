@@ -20,7 +20,7 @@ pub struct Reactive<T> {
     value: Arc<Mutex<T>>,
     observers: Arc<Mutex<Vec<Observer<T>>>>,
 
-    #[cfg(feature = "parallel")]
+    #[cfg(feature = "parallel-notification")]
     parallel_notification: bool,
 }
 
@@ -38,7 +38,7 @@ impl<T> Reactive<T> {
             value: Arc::new(Mutex::new(value)),
             observers: Default::default(),
 
-            #[cfg(feature = "parallel")]
+            #[cfg(feature = "parallel-notification")]
             parallel_notification: false,
         }
     }
@@ -52,7 +52,7 @@ impl<T> Reactive<T> {
     /// # Examples
     ///
     /// ```
-    /// # #[cfg(feature = "parallel")]
+    /// # #[cfg(feature = "parallel-notification")]
     /// # {
     /// use reactivate::Reactive;
     ///
@@ -60,7 +60,7 @@ impl<T> Reactive<T> {
     /// r.enable_parallel_notification();
     /// # }
     /// ```
-    #[cfg(feature = "parallel")]
+    #[cfg(feature = "parallel-notification")]
     pub fn enable_parallel_notification(&mut self) {
         self.parallel_notification = true;
     }
@@ -73,7 +73,7 @@ impl<T> Reactive<T> {
     /// # Examples
     ///
     /// ```
-    /// # #[cfg(feature = "parallel")]
+    /// # #[cfg(feature = "parallel-notification")]
     /// # {
     /// use reactivate::Reactive;
     ///
@@ -81,7 +81,7 @@ impl<T> Reactive<T> {
     /// r.disable_parallel_notification();
     /// # }
     /// ```
-    #[cfg(feature = "parallel")]
+    #[cfg(feature = "parallel-notification")]
     pub fn disable_parallel_notification(&mut self) {
         self.parallel_notification = false;
     }
@@ -156,7 +156,7 @@ impl<T> Reactive<T> {
     ///
     /// assert_eq!(15, d.value());
     /// ```
-    pub fn derive<#[cfg(not(feature = "parallel"))] U, #[cfg(feature = "parallel")] U: Sync>(
+    pub fn derive<#[cfg(not(feature = "parallel-notification"))] U, #[cfg(feature = "parallel-notification")] U: Sync>(
         &self,
         f: impl Fn(&T) -> U + Send + 'static,
     ) -> Reactive<U>
@@ -226,7 +226,7 @@ impl<T> Reactive<T> {
         self.acq_obs_lock().clear();
     }
 
-    #[cfg(not(feature = "parallel"))]
+    #[cfg(not(feature = "parallel-notification"))]
     fn call_observers(&self, val: &T) {
         for obs in self.acq_obs_lock().deref_mut() {
             obs(val);
@@ -244,8 +244,8 @@ impl<T> Reactive<T> {
     }
 }
 
-// #[cfg(not(feature = "parallel"))] T, #[cfg(feature = "parallel")] T: Sync
-impl<#[cfg(not(feature = "parallel"))] T, #[cfg(feature = "parallel")] T: Sync> Reactive<T> {
+// #[cfg(not(feature = "parallel-notification"))] T, #[cfg(feature = "parallel-notification")] T: Sync
+impl<#[cfg(not(feature = "parallel-notification"))] T, #[cfg(feature = "parallel-notification")] T: Sync> Reactive<T> {
     /// Update the value inside the reactive and notify all the observers
     /// by calling the added observer functions in the sequence they were added
     /// without checking if the value is changed after applying the provided function
@@ -438,7 +438,7 @@ impl<#[cfg(not(feature = "parallel"))] T, #[cfg(feature = "parallel")] T: Sync> 
         self.call_observers(guard.deref());
     }
 
-    #[cfg(feature = "parallel")]
+    #[cfg(feature = "parallel-notification")]
     fn call_observers(&self, val: &T) {
         use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
         match self.parallel_notification {

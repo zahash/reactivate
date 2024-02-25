@@ -263,7 +263,7 @@ fn can_notify() {
 }
 
 #[test]
-#[cfg(feature = "parallel")]
+#[cfg(feature = "parallel-notification")]
 fn can_parallel_notify() {
     let mut r: Reactive<String> = Reactive::new(String::from("zahash"));
     let record: Arc<Mutex<Vec<usize>>> = Default::default();
