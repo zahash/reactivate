@@ -1,9 +1,4 @@
 use reactivate::{Merge, Reactive};
-use std::{
-    sync::{Arc, Mutex},
-    thread,
-    time::Duration,
-};
 
 #[test]
 fn initial_derived_values_must_not_be_default() {
@@ -38,8 +33,20 @@ fn can_update() {
 #[test]
 fn update_only_notifies_observers_when_value_changes() {
     let r: Reactive<String> = Reactive::default();
-    let changes: Arc<Mutex<Vec<String>>> = Default::default();
 
+    #[cfg(not(feature = "threadsafe"))]
+    let changes: std::rc::Rc<std::cell::RefCell<Vec<String>>> = Default::default();
+
+    #[cfg(not(feature = "threadsafe"))]
+    r.add_observer({
+        let changes = changes.clone();
+        move |val| changes.borrow_mut().push(val.clone())
+    });
+
+    #[cfg(feature = "threadsafe")]
+    let changes: std::sync::Arc<std::sync::Mutex<Vec<String>>> = Default::default();
+
+    #[cfg(feature = "threadsafe")]
     r.add_observer({
         let changes = changes.clone();
         move |val| changes.lock().unwrap().push(val.clone())
@@ -50,17 +57,32 @@ fn update_only_notifies_observers_when_value_changes() {
     r.update(|_| String::from("b"));
     r.update(|_| String::from("b"));
 
-    assert_eq!(
-        vec![String::from("a"), String::from("b")],
-        changes.lock().unwrap().clone()
-    );
+    let expected = vec![String::from("a"), String::from("b")];
+
+    #[cfg(not(feature = "threadsafe"))]
+    assert_eq!(expected, changes.borrow().clone());
+
+    #[cfg(feature = "threadsafe")]
+    assert_eq!(expected, changes.lock().unwrap().clone());
 }
 
 #[test]
 fn update_unchecked_notifies_observers_without_checking_if_value_changed() {
     let r: Reactive<String> = Reactive::default();
-    let changes: Arc<Mutex<Vec<String>>> = Default::default();
 
+    #[cfg(not(feature = "threadsafe"))]
+    let changes: std::rc::Rc<std::cell::RefCell<Vec<String>>> = Default::default();
+
+    #[cfg(not(feature = "threadsafe"))]
+    r.add_observer({
+        let changes = changes.clone();
+        move |val| changes.borrow_mut().push(val.clone())
+    });
+
+    #[cfg(feature = "threadsafe")]
+    let changes: std::sync::Arc<std::sync::Mutex<Vec<String>>> = Default::default();
+
+    #[cfg(feature = "threadsafe")]
     r.add_observer({
         let changes = changes.clone();
         move |val| changes.lock().unwrap().push(val.clone())
@@ -71,15 +93,18 @@ fn update_unchecked_notifies_observers_without_checking_if_value_changed() {
     r.update_unchecked(|_| String::from("b"));
     r.update_unchecked(|_| String::from("b"));
 
-    assert_eq!(
-        vec![
-            String::from("a"),
-            String::from("a"),
-            String::from("b"),
-            String::from("b")
-        ],
-        changes.lock().unwrap().clone()
-    );
+    let expected = vec![
+        String::from("a"),
+        String::from("a"),
+        String::from("b"),
+        String::from("b"),
+    ];
+
+    #[cfg(not(feature = "threadsafe"))]
+    assert_eq!(expected, changes.borrow().clone());
+
+    #[cfg(feature = "threadsafe")]
+    assert_eq!(expected, changes.lock().unwrap().clone());
 }
 
 #[test]
@@ -100,8 +125,20 @@ fn can_update_inplace() {
 #[test]
 fn update_inplace_only_notifies_observers_when_value_changes() {
     let r: Reactive<String> = Reactive::default();
-    let changes: Arc<Mutex<Vec<String>>> = Default::default();
 
+    #[cfg(not(feature = "threadsafe"))]
+    let changes: std::rc::Rc<std::cell::RefCell<Vec<String>>> = Default::default();
+
+    #[cfg(not(feature = "threadsafe"))]
+    r.add_observer({
+        let changes = changes.clone();
+        move |val| changes.borrow_mut().push(val.clone())
+    });
+
+    #[cfg(feature = "threadsafe")]
+    let changes: std::sync::Arc<std::sync::Mutex<Vec<String>>> = Default::default();
+
+    #[cfg(feature = "threadsafe")]
     r.add_observer({
         let changes = changes.clone();
         move |val| changes.lock().unwrap().push(val.clone())
@@ -114,17 +151,32 @@ fn update_inplace_only_notifies_observers_when_value_changes() {
     });
     r.update_inplace(|s| s.push('b'));
 
-    assert_eq!(
-        vec![String::from("a"), String::from("ab")],
-        changes.lock().unwrap().clone()
-    );
+    let expected = vec![String::from("a"), String::from("ab")];
+
+    #[cfg(not(feature = "threadsafe"))]
+    assert_eq!(expected, changes.borrow().clone());
+
+    #[cfg(feature = "threadsafe")]
+    assert_eq!(expected, changes.lock().unwrap().clone());
 }
 
 #[test]
 fn update_inplace_unchecked_notifies_observers_without_checking_if_value_changed() {
     let r: Reactive<String> = Reactive::default();
-    let changes: Arc<Mutex<Vec<String>>> = Default::default();
 
+    #[cfg(not(feature = "threadsafe"))]
+    let changes: std::rc::Rc<std::cell::RefCell<Vec<String>>> = Default::default();
+
+    #[cfg(not(feature = "threadsafe"))]
+    r.add_observer({
+        let changes = changes.clone();
+        move |val| changes.borrow_mut().push(val.clone())
+    });
+
+    #[cfg(feature = "threadsafe")]
+    let changes: std::sync::Arc<std::sync::Mutex<Vec<String>>> = Default::default();
+
+    #[cfg(feature = "threadsafe")]
     r.add_observer({
         let changes = changes.clone();
         move |val| changes.lock().unwrap().push(val.clone())
@@ -137,17 +189,32 @@ fn update_inplace_unchecked_notifies_observers_without_checking_if_value_changed
     });
     r.update_inplace_unchecked(|s| s.push('b'));
 
-    assert_eq!(
-        vec![String::from("a"), String::from("a"), String::from("ab")],
-        changes.lock().unwrap().clone()
-    );
+    let expected = vec![String::from("a"), String::from("a"), String::from("ab")];
+
+    #[cfg(not(feature = "threadsafe"))]
+    assert_eq!(expected, changes.borrow().clone());
+
+    #[cfg(feature = "threadsafe")]
+    assert_eq!(expected, changes.lock().unwrap().clone());
 }
 
 #[test]
 fn can_add_observers() {
     let r: Reactive<String> = Reactive::default();
-    let changes: Arc<Mutex<Vec<String>>> = Default::default();
 
+    #[cfg(not(feature = "threadsafe"))]
+    let changes: std::rc::Rc<std::cell::RefCell<Vec<String>>> = Default::default();
+
+    #[cfg(not(feature = "threadsafe"))]
+    r.add_observer({
+        let changes = changes.clone();
+        move |val| changes.borrow_mut().push(val.clone())
+    });
+
+    #[cfg(feature = "threadsafe")]
+    let changes: std::sync::Arc<std::sync::Mutex<Vec<String>>> = Default::default();
+
+    #[cfg(feature = "threadsafe")]
     r.add_observer({
         let changes = changes.clone();
         move |val| changes.lock().unwrap().push(val.clone())
@@ -159,10 +226,13 @@ fn can_add_observers() {
         s.push('b');
     });
 
-    assert_eq!(
-        vec![String::from("a"), String::from("b")],
-        changes.lock().unwrap().clone()
-    );
+    let expected = vec![String::from("a"), String::from("b")];
+
+    #[cfg(not(feature = "threadsafe"))]
+    assert_eq!(expected, changes.borrow().clone());
+
+    #[cfg(feature = "threadsafe")]
+    assert_eq!(expected, changes.lock().unwrap().clone());
 }
 
 #[test]
@@ -178,23 +248,24 @@ fn can_clear_observers() {
 }
 
 #[test]
+#[cfg(feature = "threadsafe")]
 fn is_threadsafe() {
     let r: Reactive<String> = Reactive::default();
 
-    let handle = thread::spawn({
+    let handle = std::thread::spawn({
         let r = r.clone();
 
         move || {
             for _ in 0..10 {
                 r.update_inplace(|s| s.push('a'));
-                thread::sleep(Duration::from_millis(1));
+                std::thread::sleep(std::time::Duration::from_millis(1));
             }
         }
     });
 
     for _ in 0..10 {
         r.update_inplace(|s| s.push('b'));
-        thread::sleep(Duration::from_millis(1));
+        std::thread::sleep(std::time::Duration::from_millis(1));
     }
 
     handle.join().unwrap();
@@ -231,72 +302,36 @@ fn can_merge() {
 #[test]
 fn can_notify() {
     let r: Reactive<String> = Reactive::new(String::from("🦀"));
-    let record: Arc<Mutex<Vec<String>>> = Default::default();
 
+    #[cfg(not(feature = "threadsafe"))]
+    let changes: std::rc::Rc<std::cell::RefCell<Vec<String>>> = Default::default();
+
+    #[cfg(not(feature = "threadsafe"))]
     r.add_observer({
-        let change_log = record.clone();
-        move |val| change_log.lock().unwrap().push(val.clone())
+        let changes = changes.clone();
+        move |val| changes.borrow_mut().push(val.clone())
     });
+
+    #[cfg(feature = "threadsafe")]
+    let changes: std::sync::Arc<std::sync::Mutex<Vec<String>>> = Default::default();
+
+    #[cfg(feature = "threadsafe")]
     r.add_observer({
-        let change_log = record.clone();
-        move |_| change_log.lock().unwrap().push(String::from("a"))
-    });
-    r.add_observer({
-        let change_log = record.clone();
-        move |_| change_log.lock().unwrap().push(String::from("b"))
+        let changes = changes.clone();
+        move |val| changes.lock().unwrap().push(val.clone())
     });
 
     r.notify();
     r.notify();
-
-    assert_eq!(
-        vec![
-            String::from("🦀"),
-            String::from("a"),
-            String::from("b"),
-            String::from("🦀"),
-            String::from("a"),
-            String::from("b")
-        ],
-        record.lock().unwrap().clone()
-    );
-}
-
-#[test]
-#[cfg(feature = "parallel-notification")]
-fn can_parallel_notify() {
-    let mut r: Reactive<String> = Reactive::new(String::from("zahash"));
-    let record: Arc<Mutex<Vec<usize>>> = Default::default();
-
-    r.add_observer({
-        let record = record.clone();
-        move |s| record.lock().unwrap().push(s.len())
-    });
-    for i in 10..=100 {
-        r.add_observer({
-            let record = record.clone();
-            move |_| record.lock().unwrap().push(i)
-        });
-    }
-
     r.notify();
 
-    // sequential by default
-    let mut expected = vec![6];
-    expected.extend(10..=100);
-    assert_eq!(expected, record.lock().unwrap().clone());
+    let expected = vec![String::from("🦀"), String::from("🦀"), String::from("🦀")];
 
-    record.lock().unwrap().clear();
+    #[cfg(not(feature = "threadsafe"))]
+    assert_eq!(expected, changes.borrow().clone());
 
-    r.enable_parallel_notification();
-    r.notify();
-
-    // the order of calling observers is not sequential.
-    let mut result = record.lock().unwrap().clone();
-    assert_ne!(expected, result);
-    expected.sort();
-    result.sort();
-    assert_eq!(expected, result);
+    #[cfg(feature = "threadsafe")]
+    assert_eq!(expected, changes.lock().unwrap().clone());
 }
 
 #[test]

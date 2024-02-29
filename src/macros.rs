@@ -1,9 +1,10 @@
 use crate::{Merge, Reactive};
 use paste::paste;
 
-impl<T> Merge for &Reactive<T>
-where
-    T: Clone + Default + Send + 'static,
+impl<
+        #[cfg(not(feature = "threadsafe"))] T: Clone + Default + 'static,
+        #[cfg(feature = "threadsafe")] T: Clone + Default + Send + 'static,
+    > Merge for &Reactive<T>
 {
     type Output = T;
     fn merge(self) -> Reactive<Self::Output> {
@@ -11,26 +12,26 @@ where
     }
 }
 
-#[cfg(not(feature = "parallel-notification"))]
+#[cfg(not(feature = "threadsafe"))]
 macro_rules! impl_merge_for_nested_tuple {
     ( $($i:literal),* ) => { paste!{
     impl < $( [<T $i>], )* > Merge for ( $( [<T $i>], )* )
     where
         $( [<T $i>]: Merge, ) *
-        $( [<T $i>]::Output: Clone + Default + Send + 'static, ) *
+        $( [<T $i>]::Output: Clone + Default + 'static, ) *
     {
         body!($($i),*);
     }
     }};
 }
 
-#[cfg(feature = "parallel-notification")]
+#[cfg(feature = "threadsafe")]
 macro_rules! impl_merge_for_nested_tuple {
     ( $($i:literal),* ) => { paste!{
     impl < $( [<T $i>], )* > Merge for ( $( [<T $i>], )* )
     where
-        $( [<T $i>]: Merge + Sync, ) *
-        $( [<T $i>]::Output: Clone + Default + Send + Sync + 'static, ) *
+        $( [<T $i>]: Merge, ) *
+        $( [<T $i>]::Output: Clone + Default + Send + 'static, ) *
     {
         body!($($i),*);
     }

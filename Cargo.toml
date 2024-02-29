@@ -1,6 +1,6 @@
 [package]
 name = "reactivate"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 authors = ["Zahash <zahash.z@gmail.com>"]
 description = "Thread Safe Reactive Data Structure. Made with ❤️ for 🦀"
@@ -9,7 +9,7 @@ repository = "https://github.com/zahash/reactivate"
 
 [dependencies]
 paste = "1"
-rayon = { version = "1", optional = true }
+
 
 [features]
-parallel-notification = ["dep:rayon"]
+threadsafe = []
