@@ -9,3 +9,7 @@ repository = "https://github.com/zahash/reactivate"
 
 [dependencies]
 paste = { version = "1" }
+
+
+[features]
+threadsafe = []

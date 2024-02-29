@@ -3,10 +3,7 @@ use std::{
     fmt::Debug,
     hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, MutexGuard},
 };
-
-type Observer<T> = Box<dyn FnMut(&T) + Send>;
 
 /// Thread Safe Reactive Data Structure
 /// # Examples
@@ -17,8 +14,15 @@ type Observer<T> = Box<dyn FnMut(&T) + Send>;
 /// ```
 #[derive(Clone, Default)]
 pub struct Reactive<T> {
-    value: Arc<Mutex<T>>,
-    observers: Arc<Mutex<Vec<Observer<T>>>>,
+    #[cfg(not(feature = "threadsafe"))]
+    value: std::rc::Rc<std::cell::RefCell<T>>,
+    #[cfg(not(feature = "threadsafe"))]
+    observers: std::rc::Rc<std::cell::RefCell<Vec<Box<dyn FnMut(&T)>>>>,
+
+    #[cfg(feature = "threadsafe")]
+    value: std::sync::Arc<std::sync::Mutex<T>>,
+    #[cfg(feature = "threadsafe")]
+    observers: std::sync::Arc<std::sync::Mutex<Vec<Box<dyn FnMut(&T) + Send>>>>,
 }
 
 impl<T> Reactive<T> {
@@ -32,7 +36,12 @@ impl<T> Reactive<T> {
     /// ```
     pub fn new(value: T) -> Self {
         Self {
-            value: Arc::new(Mutex::new(value)),
+            #[cfg(feature = "threadsafe")]
+            value: std::sync::Arc::new(std::sync::Mutex::new(value)),
+
+            #[cfg(not(feature = "threadsafe"))]
+            value: std::rc::Rc::new(std::cell::RefCell::new(value)),
+
             observers: Default::default(),
         }
     }
@@ -50,7 +59,7 @@ impl<T> Reactive<T> {
     where
         T: Clone,
     {
-        self.acq_val_lock().clone()
+        self.acq_val().clone()
     }
 
     /// Perform some action with the reference to the inner value.
@@ -63,7 +72,7 @@ impl<T> Reactive<T> {
     /// r.with_value(|s| println!("{}", s));
     /// ```
     pub fn with_value(&self, f: impl FnOnce(&T)) {
-        f(self.acq_val_lock().deref());
+        f(self.acq_val().deref());
     }
 
     /// All the Reactive methods acquire and release locks for each method call.
@@ -89,9 +98,13 @@ impl<T> Reactive<T> {
     /// assert_eq!(21, r.value());
     ///
     /// ```
-    pub fn with(&self, f: impl FnOnce(&mut T, &mut [Observer<T>])) {
-        let mut val_guard = self.acq_val_lock();
-        let mut obs_guard = self.acq_obs_lock();
+    pub fn with(
+        &self,
+        #[cfg(not(feature = "threadsafe"))] f: impl FnOnce(&mut T, &mut [Box<dyn FnMut(&T)>]),
+        #[cfg(feature = "threadsafe")] f: impl FnOnce(&mut T, &mut [Box<dyn FnMut(&T) + Send>]),
+    ) {
+        let mut val_guard = self.acq_val();
+        let mut obs_guard = self.acq_obs();
         f(val_guard.deref_mut(), obs_guard.deref_mut());
     }
 
@@ -107,12 +120,18 @@ impl<T> Reactive<T> {
     ///
     /// assert_eq!(15, d.value());
     /// ```
-    pub fn derive<U>(&self, f: impl Fn(&T) -> U + Send + 'static) -> Reactive<U>
+    pub fn derive<
+        #[cfg(not(feature = "threadsafe"))] U: Clone + PartialEq + 'static,
+        #[cfg(feature = "threadsafe")] U: Clone + PartialEq + Send + 'static,
+    >(
+        &self,
+        #[cfg(not(feature = "threadsafe"))] f: impl Fn(&T) -> U + 'static,
+        #[cfg(feature = "threadsafe")] f: impl Fn(&T) -> U + Send + 'static,
+    ) -> Reactive<U>
     where
         T: Clone,
-        U: Clone + PartialEq + Send + 'static,
     {
-        let derived_val = f(self.acq_val_lock().deref());
+        let derived_val = f(self.acq_val().deref());
         let derived: Reactive<U> = Reactive::new(derived_val);
 
         self.add_observer({
@@ -129,29 +148,16 @@ impl<T> Reactive<T> {
     /// # Examples
     /// ```
     /// use reactivate::Reactive;
-    /// use std::sync::{Arc, Mutex};
     ///
-    /// let r: Reactive<String> = Reactive::default();
-    /// // Arc<Mutex<T>> is used to make the vector thread safe
-    /// // because Reactive as a whole must be thread safe
-    /// let change_log: Arc<Mutex<Vec<String>>> = Default::default();
-    ///
-    /// // add an observer function to keep a log of all the updates done to the reactive.
-    /// r.add_observer({
-    ///     let change_log = change_log.clone();
-    ///     move |val| change_log.lock().unwrap().push(val.clone())
-    /// });
-    ///
-    /// r.update(|_| String::from("🦀"));
-    /// r.update(|_| String::from("🦞"));
-    ///
-    /// assert_eq!(
-    /// vec![String::from("🦀"), String::from("🦞")],
-    ///     change_log.lock().unwrap().clone()
-    /// );
+    /// let r = Reactive::new(String::from("🦀"));
+    /// r.add_observer(|val| println!("{}", val));
     /// ```
-    pub fn add_observer(&self, f: impl FnMut(&T) + Send + 'static) {
-        self.acq_obs_lock().push(Box::new(f));
+    pub fn add_observer(
+        &self,
+        #[cfg(not(feature = "threadsafe"))] f: impl FnMut(&T) + 'static,
+        #[cfg(feature = "threadsafe")] f: impl FnMut(&T) + Send + 'static,
+    ) {
+        self.acq_obs().push(Box::new(f));
     }
 
     /// Clears all observers from the reactive.
@@ -171,7 +177,7 @@ impl<T> Reactive<T> {
     /// assert_eq!(11, d.value());
     /// ```
     pub fn clear_observers(&self) {
-        self.acq_obs_lock().clear();
+        self.acq_obs().clear();
     }
 
     /// Update the value inside the reactive and notify all the observers
@@ -202,11 +208,11 @@ impl<T> Reactive<T> {
     ///
     /// It is also faster than `update` for that reason
     pub fn update_unchecked(&self, f: impl FnOnce(&T) -> T) {
-        let mut guard = self.acq_val_lock();
+        let mut guard = self.acq_val();
         let val = guard.deref_mut();
         *val = f(val);
 
-        for obs in self.acq_obs_lock().deref_mut() {
+        for obs in self.acq_obs().deref_mut() {
             obs(val);
         }
     }
@@ -249,11 +255,11 @@ impl<T> Reactive<T> {
     ///
     /// It is also faster than `update_inplace` for that reason
     pub fn update_inplace_unchecked(&self, f: impl FnOnce(&mut T)) {
-        let mut guard = self.acq_val_lock();
+        let mut guard = self.acq_val();
         let val = guard.deref_mut();
         f(val);
 
-        for obs in self.acq_obs_lock().deref_mut() {
+        for obs in self.acq_obs().deref_mut() {
             obs(val);
         }
     }
@@ -274,11 +280,11 @@ impl<T> Reactive<T> {
     /// assert_eq!(25, d.value());
     /// ```
     pub fn set(&self, val: T) {
-        let mut guard = self.acq_val_lock();
+        let mut guard = self.acq_val();
         let curr_val = guard.deref_mut();
         *curr_val = val;
 
-        for obs in self.acq_obs_lock().deref_mut() {
+        for obs in self.acq_obs().deref_mut() {
             obs(curr_val);
         }
     }
@@ -302,13 +308,13 @@ impl<T> Reactive<T> {
     where
         T: PartialEq,
     {
-        let mut guard = self.acq_val_lock();
+        let mut guard = self.acq_val();
         let val = guard.deref_mut();
         let new_val = f(val);
         if &new_val != val {
             *val = new_val;
 
-            for obs in self.acq_obs_lock().deref_mut() {
+            for obs in self.acq_obs().deref_mut() {
                 obs(val);
             }
         }
@@ -341,7 +347,7 @@ impl<T> Reactive<T> {
     {
         let random_state = RandomState::new();
 
-        let mut guard = self.acq_val_lock();
+        let mut guard = self.acq_val();
         let val = guard.deref_mut();
 
         let old_hash = random_state.hash_one(&val);
@@ -349,7 +355,7 @@ impl<T> Reactive<T> {
         let new_hash = random_state.hash_one(&val);
 
         if old_hash != new_hash {
-            for obs in self.acq_obs_lock().deref_mut() {
+            for obs in self.acq_obs().deref_mut() {
                 obs(val);
             }
         }
@@ -362,38 +368,36 @@ impl<T> Reactive<T> {
     ///
     /// ```
     /// use reactivate::Reactive;
-    /// use std::sync::{Arc, Mutex};
     ///
-    /// let r: Reactive<String> = Reactive::new(String::from("🦀"));
-    /// let change_log: Arc<Mutex<Vec<String>>> = Default::default();
-    ///
-    /// r.add_observer({
-    ///     let change_log = change_log.clone();
-    ///     move |val| change_log.lock().unwrap().push(val.clone())
-    /// });
-    ///
+    /// let r = Reactive::new(String::from("🦀"));
+    /// r.add_observer(|val| println!("{}", val));
     /// r.notify();
-    /// r.notify();
-    /// r.notify();
-    ///
-    /// assert_eq!(
-    /// vec![String::from("🦀"), String::from("🦀"), String::from("🦀"),],
-    ///     change_log.lock().unwrap().clone()
-    /// );
     /// ```
     pub fn notify(&self) {
-        let guard = self.acq_val_lock();
+        let guard = self.acq_val();
         let val = guard.deref();
-        for obs in self.acq_obs_lock().deref_mut() {
+        for obs in self.acq_obs().deref_mut() {
             obs(val);
         }
     }
 
-    fn acq_val_lock(&self) -> MutexGuard<'_, T> {
+    #[cfg(not(feature = "threadsafe"))]
+    fn acq_val(&self) -> std::cell::RefMut<'_, T> {
+        self.value.borrow_mut()
+    }
+
+    #[cfg(feature = "threadsafe")]
+    fn acq_val(&self) -> std::sync::MutexGuard<'_, T> {
         self.value.lock().expect("unable to acquire lock on value")
     }
 
-    fn acq_obs_lock(&self) -> MutexGuard<'_, Vec<Observer<T>>> {
+    #[cfg(not(feature = "threadsafe"))]
+    fn acq_obs(&self) -> std::cell::RefMut<'_, Vec<Box<dyn FnMut(&T)>>> {
+        self.observers.borrow_mut()
+    }
+
+    #[cfg(feature = "threadsafe")]
+    fn acq_obs(&self) -> std::sync::MutexGuard<'_, Vec<Box<dyn FnMut(&T) + Send>>> {
         self.observers
             .lock()
             .expect("unable to acquire lock on observers")
@@ -403,7 +407,7 @@ impl<T> Reactive<T> {
 impl<T: Debug> Debug for Reactive<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Reactive")
-            .field(self.acq_val_lock().deref())
+            .field(self.acq_val().deref())
             .finish()
     }
 }
