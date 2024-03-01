@@ -180,90 +180,6 @@ impl<T> Reactive<T> {
         self.acq_obs().clear();
     }
 
-    /// Update the value inside the reactive and notify all the observers
-    /// by calling the added observer functions in the sequence they were added
-    /// without checking if the value is changed after applying the provided function
-    ///
-    /// # Examples
-    /// ```
-    /// use reactivate::Reactive;
-    ///
-    /// let r = Reactive::new(10);
-    /// let d = r.derive(|val| val + 5);
-    ///
-    /// // notifies the observers as usual because value changed from 10 to 20
-    /// r.update_unchecked(|_| 20);
-    ///
-    /// assert_eq!(25, d.value());
-    ///
-    /// // would still notify the observers even if the value didn't change
-    /// r.update_unchecked(|_| 20);
-    ///
-    /// assert_eq!(25, d.value());
-    /// ```
-    ///
-    /// # Reasons to use
-    /// `update_unchecked` doesn't require `PartialEq` trait bounds on `T`
-    /// because the old value and the new value (after applying `f`) aren't compared.
-    ///
-    /// It is also faster than `update` for that reason
-    pub fn update_unchecked(&self, f: impl FnOnce(&T) -> T) {
-        let mut guard = self.acq_val();
-        let val = guard.deref_mut();
-        *val = f(val);
-
-        for obs in self.acq_obs().deref_mut() {
-            obs(val);
-        }
-    }
-
-    /// Updates the value inside inplace without creating a new clone/copy and notify
-    /// all the observers by calling the added observer functions in the sequence they were added
-    /// without checking if the value is changed after applying the provided function.
-    ///
-    /// Prefer this when the datatype inside is expensive to clone, like a vector.
-    ///
-    /// # Examples
-    /// ```
-    /// use reactivate::Reactive;
-    ///
-    /// let r = Reactive::new(vec![1, 2, 3]);
-    /// let d = r.derive(|nums| nums.iter().sum::<i32>());
-    ///
-    /// // notifies the observers as usual because value changed from [1, 2, 3] to [1, 2, 3, 4, 5, 6]
-    /// r.update_inplace_unchecked(|nums| {
-    ///     nums.push(4);
-    ///     nums.push(5);
-    ///     nums.push(6);
-    /// });
-    ///
-    /// assert_eq!(21, d.value());
-    ///
-    /// // would still notify the observers even if the value didn't change
-    /// r.update_inplace_unchecked(|nums| {
-    ///     nums.push(100);
-    ///     nums.pop();
-    /// });
-    ///
-    /// assert_eq!(21, d.value());
-    /// ```
-    ///
-    /// # Reasons to use
-    /// `update_inplace_unchecked` doesn't require `Hash` trait bounds on `T`
-    /// because the hashes of old value and the new value (after applying `f`)
-    /// aren't calculated and compared.
-    ///
-    /// It is also faster than `update_inplace` for that reason
-    pub fn update_inplace_unchecked(&self, f: impl FnOnce(&mut T)) {
-        let mut guard = self.acq_val();
-        let val = guard.deref_mut();
-        f(val);
-
-        for obs in self.acq_obs().deref_mut() {
-            obs(val);
-        }
-    }
-
     /// Set the value inside the reactive to something new and notify all the observers
     /// by calling the added observer functions in the sequence they were added
     /// (even if the provided value is the same as the current one)
@@ -361,6 +277,90 @@ impl<T> Reactive<T> {
         }
     }
 
+    /// Update the value inside the reactive and notify all the observers
+    /// by calling the added observer functions in the sequence they were added
+    /// without checking if the value is changed after applying the provided function
+    ///
+    /// # Examples
+    /// ```
+    /// use reactivate::Reactive;
+    ///
+    /// let r = Reactive::new(10);
+    /// let d = r.derive(|val| val + 5);
+    ///
+    /// // notifies the observers as usual because value changed from 10 to 20
+    /// r.update_unchecked(|_| 20);
+    ///
+    /// assert_eq!(25, d.value());
+    ///
+    /// // would still notify the observers even if the value didn't change
+    /// r.update_unchecked(|_| 20);
+    ///
+    /// assert_eq!(25, d.value());
+    /// ```
+    ///
+    /// # Reasons to use
+    /// `update_unchecked` doesn't require `PartialEq` trait bounds on `T`
+    /// because the old value and the new value (after applying `f`) aren't compared.
+    ///
+    /// It is also faster than `update` for that reason
+    pub fn update_unchecked(&self, f: impl FnOnce(&T) -> T) {
+        let mut guard = self.acq_val();
+        let val = guard.deref_mut();
+        *val = f(val);
+
+        for obs in self.acq_obs().deref_mut() {
+            obs(val);
+        }
+    }
+
+    /// Updates the value inside inplace without creating a new clone/copy and notify
+    /// all the observers by calling the added observer functions in the sequence they were added
+    /// without checking if the value is changed after applying the provided function.
+    ///
+    /// Prefer this when the datatype inside is expensive to clone, like a vector.
+    ///
+    /// # Examples
+    /// ```
+    /// use reactivate::Reactive;
+    ///
+    /// let r = Reactive::new(vec![1, 2, 3]);
+    /// let d = r.derive(|nums| nums.iter().sum::<i32>());
+    ///
+    /// // notifies the observers as usual because value changed from [1, 2, 3] to [1, 2, 3, 4, 5, 6]
+    /// r.update_inplace_unchecked(|nums| {
+    ///     nums.push(4);
+    ///     nums.push(5);
+    ///     nums.push(6);
+    /// });
+    ///
+    /// assert_eq!(21, d.value());
+    ///
+    /// // would still notify the observers even if the value didn't change
+    /// r.update_inplace_unchecked(|nums| {
+    ///     nums.push(100);
+    ///     nums.pop();
+    /// });
+    ///
+    /// assert_eq!(21, d.value());
+    /// ```
+    ///
+    /// # Reasons to use
+    /// `update_inplace_unchecked` doesn't require `Hash` trait bounds on `T`
+    /// because the hashes of old value and the new value (after applying `f`)
+    /// aren't calculated and compared.
+    ///
+    /// It is also faster than `update_inplace` for that reason
+    pub fn update_inplace_unchecked(&self, f: impl FnOnce(&mut T)) {
+        let mut guard = self.acq_val();
+        let val = guard.deref_mut();
+        f(val);
+
+        for obs in self.acq_obs().deref_mut() {
+            obs(val);
+        }
+    }
+
     /// Notify all the observers of the current value by calling the
     /// added observer functions in the sequence they were added
     ///
@@ -381,21 +381,25 @@ impl<T> Reactive<T> {
         }
     }
 
+    #[inline]
     #[cfg(not(feature = "threadsafe"))]
     fn acq_val(&self) -> std::cell::RefMut<'_, T> {
         self.value.borrow_mut()
     }
 
-    #[cfg(feature = "threadsafe")]
-    fn acq_val(&self) -> std::sync::MutexGuard<'_, T> {
-        self.value.lock().expect("unable to acquire lock on value")
-    }
-
+    #[inline]
     #[cfg(not(feature = "threadsafe"))]
     fn acq_obs(&self) -> std::cell::RefMut<'_, Vec<Box<dyn FnMut(&T)>>> {
         self.observers.borrow_mut()
     }
 
+    #[inline]
+    #[cfg(feature = "threadsafe")]
+    fn acq_val(&self) -> std::sync::MutexGuard<'_, T> {
+        self.value.lock().expect("unable to acquire lock on value")
+    }
+
+    #[inline]
     #[cfg(feature = "threadsafe")]
     fn acq_obs(&self) -> std::sync::MutexGuard<'_, Vec<Box<dyn FnMut(&T) + Send>>> {
         self.observers

@@ -21,7 +21,7 @@ Thread Safe Reactive Data Structure. Made with ❤️ for 🦀
 include it in your `Cargo.toml` under `[dependencies]`
 
 ```toml
-reactivate = { version = "*" }
+reactivate = { version = "*", features = ["threadsafe"] }
 ```
 
 ## 🧑‍💻 Usage examples
@@ -148,7 +148,7 @@ fn main() {
 }
 ```
 
-### 🧵 With Threads
+### 🧵 With Threads (features = ["threadsafe"])
 
 ```rust
 use reactivate::Reactive;
