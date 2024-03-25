@@ -26,7 +26,7 @@ pub struct Reactive<T> {
 }
 
 impl<T> Reactive<T> {
-    /// Constructs a new Reactive<T>
+    /// Constructs a new `Reactive<T>`
     ///
     /// # Examples
     /// ```
